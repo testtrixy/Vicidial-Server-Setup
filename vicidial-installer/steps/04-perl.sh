@@ -31,9 +31,8 @@ yum install -y \
   perl-Proc-ProcessTable \
   perl-IO-Socket-SSL \
   perl-Net-Telnet \
-  perl-Net-SMTP \
-  perl-Net-Cmd \
-  perl-Net-Ping
+  perl-Net-Ping \
+  perl-libnet
 
 # ---------------------------------------------------
 # 2. Configure CPAN non-interactively (fallback safety)
