@@ -5,27 +5,28 @@ echo "=================================================="
 echo " STEP 03: MariaDB Installation & Configuration"
 echo "=================================================="
 
+MYSQL_SOCKET="/var/lib/mysql/mysql.sock"
+
 # ---------------------------------------------------
 # 1. Install MariaDB
 # ---------------------------------------------------
 dnf install -y mariadb-server mariadb
 
+systemctl enable mariadb
+
 # ---------------------------------------------------
-# CLEAN UP ANY BROKEN PREVIOUS CONFIG
+# 2. Reset any broken previous config
 # ---------------------------------------------------
-echo "[+] Resetting MariaDB config to safe baseline"
+echo "[+] Resetting MariaDB configuration"
 
 if [ -f /etc/my.cnf ]; then
   mv /etc/my.cnf /etc/my.cnf.broken.$(date +%s)
 fi
 
-# Remove drop-in configs that may break startup
 rm -f /etc/my.cnf.d/*.cnf 2>/dev/null || true
 
-systemctl enable mariadb
-
 # ---------------------------------------------------
-# 2. Initialize DB directory if needed
+# 3. Initialize DB directory if needed
 # ---------------------------------------------------
 if [ ! -d /var/lib/mysql/mysql ]; then
   echo "[+] Initializing MariaDB data directory"
@@ -33,34 +34,96 @@ if [ ! -d /var/lib/mysql/mysql ]; then
 fi
 
 # ---------------------------------------------------
-# 3. Start MariaDB
+# 4. Calculate RAM-based tuning
 # ---------------------------------------------------
-systemctl start mariadb
-sleep 3
+TOTAL_RAM_MB=$(free -m | awk '/Mem:/ {print $2}')
+INNODB_BP_MB=$((TOTAL_RAM_MB * 60 / 100))
+
+# Safe floor for small VMs
+if [ "$INNODB_BP_MB" -lt 512 ]; then
+  INNODB_BP_MB=512
+fi
+
+echo "[+] Total RAM: ${TOTAL_RAM_MB} MB"
+echo "[+] InnoDB buffer pool: ${INNODB_BP_MB} MB"
 
 # ---------------------------------------------------
-# 4. Verify socket
+# 5. Write MariaDB configuration (KNOWN-GOOD)
 # ---------------------------------------------------
-MYSQL_SOCKET="/var/lib/mysql/mysql.sock"
+echo "[+] Writing MariaDB configuration"
 
-if [ ! -S "$MYSQL_SOCKET" ]; then
-  echo "[FATAL] MariaDB socket not found: $MYSQL_SOCKET"
-  systemctl status mariadb
+cat <<EOF > /etc/my.cnf
+[client]
+socket=${MYSQL_SOCKET}
+
+[mysqld]
+user=mysql
+datadir=/var/lib/mysql
+socket=${MYSQL_SOCKET}
+
+# Connections
+max_connections=800
+max_allowed_packet=32M
+
+# MyISAM (legacy VICIdial tables)
+key_buffer_size=256M
+
+# Table cache
+table_open_cache=1024
+tmp_table_size=128M
+max_heap_table_size=128M
+
+# SQL mode
+sql_mode=NO_ENGINE_SUBSTITUTION
+
+# Character set
+character-set-server=utf8mb4
+collation-server=utf8mb4_unicode_ci
+
+# InnoDB (primary engine)
+innodb_buffer_pool_size=${INNODB_BP_MB}M
+innodb_log_file_size=256M
+innodb_flush_log_at_trx_commit=2
+innodb_file_per_table=1
+
+# Slow query logging
+slow_query_log=1
+slow_query_log_file=/var/log/mysqld/slow-queries.log
+long_query_time=1
+EOF
+
+mkdir -p /var/log/mysqld
+chown -R mysql:mysql /var/log/mysqld
+
+# ---------------------------------------------------
+# 6. Start MariaDB with new config
+# ---------------------------------------------------
+echo "[+] Starting MariaDB"
+systemctl restart mariadb
+sleep 5
+
+if ! systemctl is-active --quiet mariadb; then
+  echo "[FATAL] MariaDB failed to start"
+  journalctl -u mariadb -n 50 --no-pager
   exit 1
 fi
 
-echo "[OK] MariaDB socket detected"
+# ---------------------------------------------------
+# 7. Verify socket and query
+# ---------------------------------------------------
+if [ ! -S "$MYSQL_SOCKET" ]; then
+  echo "[FATAL] MariaDB socket not found: $MYSQL_SOCKET"
+  journalctl -u mariadb -n 50 --no-pager
+  exit 1
+fi
 
-# ---------------------------------------------------
-# 5. Verify root access (socket auth)
-# ---------------------------------------------------
 mysql -u root -e "SELECT 1;" >/dev/null \
-  || { echo "[FATAL] MariaDB root access failed"; exit 1; }
+  || { echo "[FATAL] MariaDB query test failed"; exit 1; }
 
-echo "[OK] MariaDB root access verified"
+echo "[OK] MariaDB started and responding"
 
 # ---------------------------------------------------
-# 6. Secure MariaDB (NON-INTERACTIVE)
+# 8. Secure MariaDB (NON-INTERACTIVE)
 # ---------------------------------------------------
 echo "[+] Hardening MariaDB"
 
@@ -74,92 +137,4 @@ FLUSH PRIVILEGES;
 EOF
 
 echo "[OK] MariaDB hardened"
-
-
-# ---------------------------------------------------
-# 8. Backup and write MariaDB config
-# ---------------------------------------------------
-echo "[+] Writing MariaDB configuration"
-
-cp -n /etc/my.cnf /etc/my.cnf.original 2>/dev/null || true
-
-
-echo "[+] Validating MariaDB configuration"
-
-mysqld --validate-config >/dev/null 2>&1 \
-  || { echo "[FATAL] MariaDB config validation failed"; exit 1; }
-  
-
-
-# ---------------------------------------------------
-# 7. Calculate InnoDB buffer pool (60% RAM)
-# ---------------------------------------------------
-
-echo "[+] Writing MariaDB configuration"
-
-TOTAL_RAM_MB=$(free -m | awk '/Mem:/ {print $2}')
-INNODB_BP_MB=$((TOTAL_RAM_MB * 60 / 100))
-
-echo "[+] Total RAM: ${TOTAL_RAM_MB} MB"
-echo "[+] InnoDB buffer pool: ${INNODB_BP_MB} MB"
-
-
-# Safe cap for small VMs
-if [ "$INNODB_BP_MB" -lt 512 ]; then
-  INNODB_BP_MB=512
-fi
-
-
-# ---------------------------------------------------
-# 8. Write MariaDB configuration (VALIDATED)
-# ---------------------------------------------------
-
-
-
-cat <<EOF > /etc/my.cnf
-[client]
-socket=/var/lib/mysql/mysql.sock
-
-[mysqld]
-user=mysql
-datadir=/var/lib/mysql
-socket=/var/lib/mysql/mysql.sock
-
-# Connection limits
-max_connections=800
-max_allowed_packet=32M
-
-# MyISAM (VICIdial legacy tables)
-key_buffer_size=256M
-
-# Table cache (correct variable name)
-table_open_cache=1024
-tmp_table_size=128M
-max_heap_table_size=128M
-
-# SQL mode
-sql_mode=NO_ENGINE_SUBSTITUTION
-
-# Character set
-character-set-server=utf8mb4
-collation-server=utf8mb4_unicode_ci
-
-# InnoDB (modern VICIdial)
-innodb_buffer_pool_size=${INNODB_BP_MB}M
-innodb_log_file_size=256M
-innodb_flush_log_at_trx_commit=2
-innodb_file_per_table=1
-
-# Logging
-slow_query_log=1
-slow_query_log_file=/var/log/mysqld/slow-queries.log
-long_query_time=1
-EOF
-
-
-
-
-
-
-mkdir -p /var/log/mysqld
-chown -R
+echo "=================================================="
