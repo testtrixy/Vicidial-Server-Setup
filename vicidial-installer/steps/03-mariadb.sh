@@ -10,6 +10,18 @@ echo "=================================================="
 # ---------------------------------------------------
 dnf install -y mariadb-server mariadb
 
+# ---------------------------------------------------
+# CLEAN UP ANY BROKEN PREVIOUS CONFIG
+# ---------------------------------------------------
+echo "[+] Resetting MariaDB config to safe baseline"
+
+if [ -f /etc/my.cnf ]; then
+  mv /etc/my.cnf /etc/my.cnf.broken.$(date +%s)
+fi
+
+# Remove drop-in configs that may break startup
+rm -f /etc/my.cnf.d/*.cnf 2>/dev/null || true
+
 systemctl enable mariadb
 
 # ---------------------------------------------------
@@ -79,6 +91,13 @@ echo "[+] Writing MariaDB configuration"
 
 cp -n /etc/my.cnf /etc/my.cnf.original 2>/dev/null || true
 
+
+echo "[+] Validating MariaDB configuration"
+
+mysqld --validate-config >/dev/null 2>&1 \
+  || { echo "[FATAL] MariaDB config validation failed"; exit 1; }
+  
+
 cat <<EOF > /etc/my.cnf
 [client]
 socket=${MYSQL_SOCKET}
@@ -110,6 +129,10 @@ slow_query_log=1
 slow_query_log_file=/var/log/mysqld/slow-queries.log
 long_query_time=1
 EOF
+
+
+
+
 
 mkdir -p /var/log/mysqld
 chown -R

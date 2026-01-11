@@ -47,6 +47,10 @@ ImageMagick \
 lame-devel
 
 
+
+
+
+
 echo "[OK] Repos & packages installed"
 
 
