@@ -1,6 +1,11 @@
 #!/bin/bash
 
 
+echo "=============================="
+echo " VICIDIAL AUTO INSTALL Script "
+echo "=============================="
+
+
 
 
 if [ "$EUID" -ne 0 ]; then
@@ -8,19 +13,32 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+#!/bin/bash
+set -euo pipefail
 
-echo "=============================="
-echo " VICIDIAL AUTO INSTALL Script "
-echo "=============================="
+# ---------------------------------------------------
+# VICIdial Installer — Rollback Safety Gate
+# ---------------------------------------------------
 
+STATE_DIR="${STATE_DIR:-/var/lib/vicidial-installer}"
+ROLLBACK_MARKER="$STATE_DIR/ROLLBACK_IN_PROGRESS"
 
-
- 
-
-if [ -f /var/lib/vicidial-installer/ROLLBACK_IN_PROGRESS ]; then
-  echo "[FATAL] Rollback incomplete. Fix rollback before install."
+if [ -f "$ROLLBACK_MARKER" ]; then
+  echo "=================================================="
+  echo "[FATAL] Rollback is in progress or incomplete."
+  echo "Marker file found: $ROLLBACK_MARKER"
+  echo ""
+  echo "Do NOT run install.sh until rollback is completed."
+  echo ""
+  echo "If rollback crashed, fix or re-run rollback.sh:"
+  echo "  ./rollback.sh"
+  echo "=================================================="
   exit 1
 fi
+
+
+
+
 
 
 
