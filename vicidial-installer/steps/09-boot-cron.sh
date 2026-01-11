@@ -70,4 +70,42 @@ EOF
 crontab "$CRON_TMP"
 rm -f "$CRON_TMP"
 
+
+bash ./post-install-db-rotate.sh
+
+
+
+
+
+
+
+
+echo "Book Reload rc.local"
+
+chmod +x /etc/rc.d/rc.local
+
+cat <<EOF > /etc/systemd/system/rc-local.service
+[Unit]
+Description=/etc/rc.d/rc.local Compatibility
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/etc/rc.d/rc.local
+TimeoutSec=0
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reexec
+systemctl enable rc-local
+systemctl start rc-local
+
+
+
+
+
+
 echo "[OK] VICIdial cron installed successfully"

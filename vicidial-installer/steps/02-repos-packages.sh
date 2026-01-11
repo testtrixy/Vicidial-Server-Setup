@@ -25,7 +25,14 @@ httpd wget unzip curl screen sox sendmail mutt \
 kernel-devel kernel-headers openssl-devel \
 libpcap libpcap-devel ncurses-devel newt-devel \
 htop iftop certbot mod_ssl mariadb-devel \
-subversion
+subversion 
+
+
+yum install -y \
+  nc \
+  mutt \
+  patch \
+  libedit-devel
 
 
 

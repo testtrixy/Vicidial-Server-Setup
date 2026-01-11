@@ -13,6 +13,17 @@ echo "=============================="
 echo " VICIDIAL AUTO INSTALL Script "
 echo "=============================="
 
+
+
+ 
+
+if [ -f /var/lib/vicidial-installer/ROLLBACK_IN_PROGRESS ]; then
+  echo "[FATAL] Rollback incomplete. Fix rollback before install."
+  exit 1
+fi
+
+
+
 trap 'set +e; ./rollback.sh || true; exit 1' ERR
 
 
@@ -41,6 +52,8 @@ STEPS=(
   "07-asterisk.sh"
   "08-vicidial.sh"
   "09-boot-cron.sh"
+  "09A-web-tuning"
+  "10-fail2ban.sh"
 )
 
 trap 'echo "[ERROR] Install failed — rolling back"; ./rollback.sh' ERR

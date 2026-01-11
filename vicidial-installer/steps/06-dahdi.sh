@@ -12,9 +12,9 @@ make && make install && make install-config
 yum install -y dahdi-tools-libs
 
 
-
-
+echo "dahdi_dummy" > /etc/modules-load.d/dahdi.conf
 modprobe dahdi_dummy
+
 modprobe dahdi
 /usr/sbin/dahdi_cfg -vvvvvvvvvvvvv || true
 lsmod | grep dahdi || echo "WARN: DAHDI not loaded"

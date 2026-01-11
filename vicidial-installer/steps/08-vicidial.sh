@@ -29,7 +29,12 @@ command -v mysql >/dev/null || { echo "[FATAL] mysql client missing"; exit 1; }
 # ---------------------------------------------------
 # Detect server IP (prevents server_ip='')
 # ---------------------------------------------------
-SERVER_IP=$(hostname -I | awk '{print $1}')
+if [ -n "$PUBLIC_IP" ]; then
+  SERVER_IP="$PUBLIC_IP"
+else
+  SERVER_IP=$(hostname -I | awk '{print $1}')
+fi
+
 [ -z "$SERVER_IP" ] && { echo "[FATAL] Unable to detect server IP"; exit 1; }
 
 echo "[+] Detected server IP: $SERVER_IP"
