@@ -75,14 +75,6 @@ EOF
 
 echo "[OK] MariaDB hardened"
 
-# ---------------------------------------------------
-# 7. Calculate InnoDB buffer pool (60% RAM)
-# ---------------------------------------------------
-TOTAL_RAM_MB=$(free -m | awk '/Mem:/ {print $2}')
-INNODB_BP_MB=$((TOTAL_RAM_MB * 60 / 100))
-
-echo "[+] Total RAM: ${TOTAL_RAM_MB} MB"
-echo "[+] InnoDB buffer pool: ${INNODB_BP_MB} MB"
 
 # ---------------------------------------------------
 # 8. Backup and write MariaDB config
@@ -98,37 +90,72 @@ mysqld --validate-config >/dev/null 2>&1 \
   || { echo "[FATAL] MariaDB config validation failed"; exit 1; }
   
 
+
+# ---------------------------------------------------
+# 7. Calculate InnoDB buffer pool (60% RAM)
+# ---------------------------------------------------
+
+echo "[+] Writing MariaDB configuration"
+
+TOTAL_RAM_MB=$(free -m | awk '/Mem:/ {print $2}')
+INNODB_BP_MB=$((TOTAL_RAM_MB * 60 / 100))
+
+echo "[+] Total RAM: ${TOTAL_RAM_MB} MB"
+echo "[+] InnoDB buffer pool: ${INNODB_BP_MB} MB"
+
+
+# Safe cap for small VMs
+if [ "$INNODB_BP_MB" -lt 512 ]; then
+  INNODB_BP_MB=512
+fi
+
+
+# ---------------------------------------------------
+# 8. Write MariaDB configuration (VALIDATED)
+# ---------------------------------------------------
+
+
+
 cat <<EOF > /etc/my.cnf
 [client]
-socket=${MYSQL_SOCKET}
+socket=/var/lib/mysql/mysql.sock
 
 [mysqld]
 user=mysql
 datadir=/var/lib/mysql
-socket=${MYSQL_SOCKET}
+socket=/var/lib/mysql/mysql.sock
 
+# Connection limits
 max_connections=800
 max_allowed_packet=32M
-key_buffer_size=512M
-sql_mode="NO_ENGINE_SUBSTITUTION"
 
+# MyISAM (VICIdial legacy tables)
+key_buffer_size=256M
+
+# Table cache (correct variable name)
+table_open_cache=1024
 tmp_table_size=128M
-table_cache=1024
+max_heap_table_size=128M
 
+# SQL mode
+sql_mode=NO_ENGINE_SUBSTITUTION
+
+# Character set
 character-set-server=utf8mb4
 collation-server=utf8mb4_unicode_ci
 
-# InnoDB tuning
+# InnoDB (modern VICIdial)
 innodb_buffer_pool_size=${INNODB_BP_MB}M
 innodb_log_file_size=256M
 innodb_flush_log_at_trx_commit=2
 innodb_file_per_table=1
 
-# Slow query logging
+# Logging
 slow_query_log=1
 slow_query_log_file=/var/log/mysqld/slow-queries.log
 long_query_time=1
 EOF
+
 
 
 
