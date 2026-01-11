@@ -13,8 +13,6 @@ echo "[+] Installing development tools"
 yum groupinstall "Development Tools" -y
 
 echo "[+] Installing system packages"
-yum install -y \
-
 
 
 
