@@ -1,29 +1,65 @@
 #!/bin/bash
-echo "=== STEP 07: Asterisk ==="
+set -euo pipefail
 
-cd /usr/src
-wget -q http://download.vicidial.com/required-apps/asterisk-13.29.2-vici.tar.gz
-tar xzf asterisk-13.29.2-vici.tar.gz
-cd asterisk-13.29.2
+echo "=================================================="
+echo " STEP 07: Asterisk Build & Install"
+echo "=================================================="
 
-./configure --libdir=/usr/lib64 --with-pjproject-bundled --with-jansson-bundled
+ASTERISK_SRC="/usr/src/asterisk-13.29.2"
 
+cd "$ASTERISK_SRC"
 
-#make menuselect
+# ---------------------------------------------------
+# 1. Configure Asterisk
+# ---------------------------------------------------
+echo "[+] Configuring Asterisk"
 
-echo "=== STEP 07: Auto select Menue ==="
+./configure \
+  --libdir=/usr/lib64 \
+  --with-pjproject-bundled \
+  --with-jansson-bundled
+
+# ---------------------------------------------------
+# 2. Build menuselect explicitly (CRITICAL)
+# ---------------------------------------------------
+echo "[+] Building menuselect"
+make menuselect
+
+if [ ! -x menuselect/menuselect ]; then
+  echo "[FATAL] menuselect binary not found after build"
+  exit 1
+fi
+
+# ---------------------------------------------------
+# 3. Auto-select required modules for VICIdial
+# ---------------------------------------------------
+echo "[+] Selecting Asterisk modules"
+
 menuselect/menuselect \
   --enable app_meetme \
-  --enable res_srtp \
   --enable res_http_websocket \
+  --enable res_srtp \
   menuselect.makeopts
 
+# ---------------------------------------------------
+# 4. Build and install Asterisk
+# ---------------------------------------------------
+echo "[+] Building Asterisk"
+make -j$(nproc)
 
-
-make && make install
-if [ ! -f /etc/asterisk/extensions.conf ]; then
-  make samples
-fi
+echo "[+] Installing Asterisk"
+make install
+make samples
 make config
 
-echo "[OK] Asterisk installed"
+# ---------------------------------------------------
+# 5. Verify installation
+# ---------------------------------------------------
+if ! command -v asterisk >/dev/null 2>&1; then
+  echo "[FATAL] Asterisk binary not found after install"
+  exit 1
+fi
+
+echo "[OK] Asterisk installed successfully"
+echo "=================================================="
+
