@@ -7,8 +7,8 @@ DEST="$BACKUP_DIR/$DATE"
 mkdir -p "$DEST"
 
 #mysqldump -u root "$DB_NAME" > "$DEST/db.sql"
-mysqldump --single-transaction -u root "$DB_NAME" > "$DEST/db.sql"
-
+#mysqldump --single-transaction -u root "$DB_NAME" > "$DEST/db.sql"
+mysqldump -u root --routines --triggers --single-transaction "$DB_NAME" > "$DEST/db.sql"
 
 tar czf "$DEST/asterisk.tar.gz" /etc/asterisk /var/lib/asterisk
 tar czf "$DEST/vicidial.tar.gz" /usr/share/astguiclient /var/www/html/vicidial

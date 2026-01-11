@@ -14,13 +14,18 @@ yum groupinstall "Development Tools" -y
 
 echo "[+] Installing system packages"
 yum install -y \
+
+
+
+
+yum install -y \
 php php-cli php-gd php-curl php-mysql php-ldap php-zip php-mbstring \
 php-imap php-xml php-xmlrpc php-pear php-opcache \
 httpd wget unzip curl screen sox sendmail mutt \
 kernel-devel kernel-headers openssl-devel \
 libpcap libpcap-devel ncurses-devel newt-devel \
-htop iftop certbot mod_ssl mariadb-devel
-
+htop iftop certbot mod_ssl mariadb-devel \
+subversion
 
 
 

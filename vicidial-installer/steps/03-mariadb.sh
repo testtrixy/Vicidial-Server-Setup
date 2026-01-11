@@ -21,6 +21,7 @@ cat <<EOF > /etc/my.cnf
 [mysqld]
 max_connections=800
 max_allowed_packet=32M
+key_buffer_size=512M
 sql_mode="NO_ENGINE_SUBSTITUTION"
 query-cache-size=32M
 tmp_table_size=128M

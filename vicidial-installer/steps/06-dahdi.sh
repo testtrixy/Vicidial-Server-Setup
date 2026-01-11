@@ -14,10 +14,11 @@ yum install -y dahdi-tools-libs
 
 
 
-
+modprobe dahdi_dummy
 modprobe dahdi
 /usr/sbin/dahdi_cfg -vvvvvvvvvvvvv || true
 lsmod | grep dahdi || echo "WARN: DAHDI not loaded"
+
 
 
 echo "[OK] DAHDI installed"

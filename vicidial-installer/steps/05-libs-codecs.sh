@@ -16,4 +16,14 @@ cd jansson-2.13
 ./configure && make && make install
 ldconfig
 
+
+cd /usr/src
+wget http://download.vicidial.com/required-apps/asterisk-perl-0.08.tar.gz
+tar xzf asterisk-perl-0.08.tar.gz
+cd asterisk-perl-0.08
+perl Makefile.PL
+make
+make install
+
+
 echo "[OK] Codecs installed"

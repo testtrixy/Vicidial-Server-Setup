@@ -21,7 +21,9 @@ menuselect/menuselect \
 
 
 make && make install
-make samples
+if [ ! -f /etc/asterisk/extensions.conf ]; then
+  make samples
+fi
 make config
 
 echo "[OK] Asterisk installed"

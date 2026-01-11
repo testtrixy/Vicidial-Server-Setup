@@ -18,6 +18,12 @@ mysql -u "$DB_USER_CRON" -p"$DB_PASS_CRON" "$DB_NAME" \
 curl -sf http://localhost/vicidial/admin.php >/dev/null \
   || fail "VICIdial admin UI not reachable"
 
+
+
+crontab -l | grep -q "VICIDIAL CRON START" \
+  || { echo "[FAIL] VICIdial cron not installed"; exit 1; }
+  
+
 crontab -l | grep -q AST_CRON_audio || fail "VICIdial cron missing"
 
 echo "[OK] POST INSTALL VERIFIED – SYSTEM READY"

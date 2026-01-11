@@ -1,5 +1,6 @@
 #!/bin/bash
 
+SRC="$1"
 
 read -p "This will overwrite live data. Continue? (yes/no): " ans
 [ "$ans" != "yes" ] && exit 1
@@ -18,7 +19,7 @@ for f in db.sql asterisk.tar.gz vicidial.tar.gz recordings.tar.gz; do
 done
 
 
-SRC="$1"
+
 systemctl stop asterisk mariadb httpd
 
 mysql -u root asterisk < "$SRC/db.sql"
