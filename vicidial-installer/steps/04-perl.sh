@@ -1,17 +1,110 @@
 #!/bin/bash
-echo "=== STEP 04: Perl Modules ==="
+set -euo pipefail
 
-yum install -y perl-CPAN perl-YAML perl-libwww-perl perl-DBI perl-DBD-MySQL \
-perl-GD perl-Term-ReadLine-Gnu perl-Env perl-open
+# ---------------------------------------------------
+# STEP 04: Perl Runtime + Asterisk-Perl (VICIdial Safe)
+# ---------------------------------------------------
 
-cd /usr/bin
-curl -LOk http://xrl.us/cpanm
-chmod +x cpanm
+echo "=================================================="
+echo " STEP 04: PERL MODULES & ASTERISK-PERL"
+echo "=================================================="
 
-echo "[+] Installing Perl modules via cpanm"
-cpanm -f \
-DBI DBD::mysql Net::Telnet Time::HiRes Net::Server \
-Mail::Sendmail Spreadsheet::ParseExcel Spreadsheet::XLSX \
-LWP::UserAgent HTML::Entities IO::Socket::SSL
+# ---------------------------------------------------
+# 1. Install system Perl dependencies (EPEL-safe)
+# ---------------------------------------------------
+echo "[+] Installing system Perl packages"
 
-echo "[OK] Perl modules installed"
+yum install -y \
+  perl-CPAN \
+  perl-YAML \
+  perl-libwww-perl \
+  perl-DBI \
+  perl-DBD-MySQL \
+  perl-GD \
+  perl-Term-ReadLine-Gnu \
+  perl-Env \
+  perl-open \
+  perl-Digest-SHA \
+  perl-App-cpanminus \
+  perl-Switch \
+  perl-Archive-Zip \
+  perl-Proc-ProcessTable \
+  perl-IO-Socket-SSL \
+  perl-Net-Telnet \
+  perl-Net-SMTP \
+  perl-Net-Cmd \
+  perl-Net-Ping
+
+# ---------------------------------------------------
+# 2. Configure CPAN non-interactively (fallback safety)
+# ---------------------------------------------------
+echo "[+] Initializing CPAN config (non-interactive)"
+
+mkdir -p /root/.cpan/CPAN
+cat <<'EOF' > /root/.cpan/CPAN/MyConfig.pm
+$CPAN::Config = {
+  'auto_commit' => q[1],
+  'build_dir' => q[/root/.cpan/build],
+  'urllist' => [q[http://www.cpan.org/]],
+  'prerequisites_policy' => q[follow],
+  'build_requires_install_policy' => q[yes],
+};
+1;
+__END__
+EOF
+
+# ---------------------------------------------------
+# 3. Install critical CPAN modules (forced, legacy-safe)
+# ---------------------------------------------------
+echo "[+] Installing required CPAN modules (may take time)"
+
+cpanm -f --notest \
+  DBI \
+  DBD::mysql \
+  Net::Telnet \
+  Time::HiRes \
+  Net::Server \
+  Switch \
+  Mail::Sendmail \
+  Unicode::Map \
+  Jcode \
+  Spreadsheet::WriteExcel \
+  Spreadsheet::ParseExcel \
+  Spreadsheet::XLSX \
+  OLE::Storage_Lite \
+  Proc::ProcessTable \
+  IO::Scalar \
+  LWP::UserAgent \
+  HTML::Entities \
+  IO::Socket::SSL \
+  String::CRC \
+  Net::Address::IP::Local \
+  Tk::TableMatrix \
+  Crypt::Eksblowfish::Bcrypt
+
+# ---------------------------------------------------
+# 4. CRITICAL: Compile asterisk-perl-0.08 manually
+# ---------------------------------------------------
+echo "[+] Compiling asterisk-perl-0.08 (CRITICAL)"
+
+cd /usr/src
+if [ ! -d asterisk-perl-0.08 ]; then
+  wget -q http://download.vicidial.com/required-apps/asterisk-perl-0.08.tar.gz
+  tar xzf asterisk-perl-0.08.tar.gz
+fi
+
+cd asterisk-perl-0.08
+perl Makefile.PL
+make
+make install
+
+# ---------------------------------------------------
+# 5. Verification (hard fail if broken)
+# ---------------------------------------------------
+echo "[+] Verifying Asterisk::AGI module"
+
+perl -e 'use Asterisk::AGI; print "Asterisk::AGI OK\n";' \
+  || { echo "[FATAL] Asterisk::AGI failed to load"; exit 1; }
+
+echo "[OK] STEP 04 COMPLETED SUCCESSFULLY"
+echo "=================================================="
