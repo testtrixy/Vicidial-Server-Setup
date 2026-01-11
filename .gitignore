@@ -1,0 +1,55 @@
+# ================================
+# OS / Editor junk
+# ================================
+.DS_Store
+.DS_Store?
+__MACOSX/
+Thumbs.db
+ehthumbs.db
+
+# ================================
+# Logs & runtime artifacts
+# ================================
+logs/
+*.log
+
+# ================================
+# Installer state (idempotency)
+# ================================
+state/
+*.done
+
+# ================================
+# Backups & archives
+# ================================
+backups/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# ================================
+# Temporary files
+# ================================
+tmp/
+temp/
+*.swp
+*.swo
+*~
+
+# ================================
+# Environment / secrets
+# ================================
+.env
+.env.local
+config.env.local
+
+# ================================
+# CI / build leftovers
+# ================================
+coverage/
+dist/
+build/
+
+# ================================
+# SVN / compiled artifacts
