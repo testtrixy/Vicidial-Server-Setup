@@ -15,9 +15,9 @@ echo "=================================================="
 
 AST_DB="$DB_NAME"
 SVN_DIR="/usr/src/astguiclient"
+WEB_ROOT="${WEB_ROOT:-/var/www/html}"
 
-# Optional flag:
-# export FORCE_REBUILD_DB=1  (ONLY for fresh installs)
+# Optional flag (ONLY for fresh installs / CI)
 FORCE_REBUILD_DB="${FORCE_REBUILD_DB:-0}"
 
 # ---------------------------------------------------
@@ -66,6 +66,30 @@ CREATE DATABASE IF NOT EXISTS ${AST_DB}
 EOF
 
 # ---------------------------------------------------
+# CRITICAL: Create DB Users (cron/custom)
+# install.pl --no-prompt defaults to password '1234'
+# ---------------------------------------------------
+echo "[+] Creating MySQL users (cron/custom)"
+
+mysql -u root <<EOF
+CREATE USER IF NOT EXISTS '${DB_USER_CRON}'@'localhost'
+  IDENTIFIED BY '${DB_PASS_CRON}';
+GRANT SELECT,INSERT,UPDATE,DELETE,LOCK TABLES
+  ON ${AST_DB}.*
+  TO '${DB_USER_CRON}'@'localhost';
+GRANT RELOAD ON *.* TO '${DB_USER_CRON}'@'localhost';
+
+CREATE USER IF NOT EXISTS '${DB_USER_CUSTOM}'@'localhost'
+  IDENTIFIED BY '${DB_PASS_CUSTOM}';
+GRANT SELECT,INSERT,UPDATE,DELETE,LOCK TABLES
+  ON ${AST_DB}.*
+  TO '${DB_USER_CUSTOM}'@'localhost';
+GRANT RELOAD ON *.* TO '${DB_USER_CUSTOM}'@'localhost';
+
+FLUSH PRIVILEGES;
+EOF
+
+# ---------------------------------------------------
 # Schema idempotency guard
 # ---------------------------------------------------
 SCHEMA_PRESENT=$(mysql -u root ${AST_DB} \
@@ -92,17 +116,18 @@ fi
 echo "[OK] Schema verification passed ($TABLE_COUNT tables)"
 
 # ---------------------------------------------------
-# Run VICIdial installer (non-interactive, with IP)
+# Run VICIdial installer (non-interactive)
 # ---------------------------------------------------
 echo "[+] Running VICIdial install.pl"
 
 perl install.pl \
+  --web-root="$WEB_ROOT" \
   --no-prompt \
   --copy_sample_conf_files=y \
   --server_ip="$SERVER_IP"
 
 # ---------------------------------------------------
-# Schema version check
+# Schema version tracking
 # ---------------------------------------------------
 SVN_REV_LOCAL=$(svn info | awk '/Revision:/ {print $2}')
 mysql -u root ${AST_DB} -e \
@@ -111,7 +136,7 @@ mysql -u root ${AST_DB} -e \
 # ---------------------------------------------------
 # Post-install VICIdial scripts
 # ---------------------------------------------------
-/usr/share/astguiclient/ADMIN_area_code_populate.pl || true
+/usr/share/astguiclient/ADMIN_area_code_populate.pl --purge-table --debug || true
 /usr/share/astguiclient/ADMIN_update_server_ip.pl --old-server_ip=127.0.0.1 || true
 
 # ---------------------------------------------------
@@ -119,6 +144,7 @@ mysql -u root ${AST_DB} -e \
 # ---------------------------------------------------
 chown -R asterisk:asterisk /var/log/asterisk /var/spool/asterisk || true
 chown -R apache:apache "$WEB_ROOT" || true
+chmod -R 755 "$WEB_ROOT/vicidial" || true
 
 # ---------------------------------------------------
 # Final validation
