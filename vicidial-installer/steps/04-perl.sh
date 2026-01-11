@@ -97,7 +97,8 @@ cpanm -f --notest \
   String::CRC \
   Net::Address::IP::Local \
   Tk::TableMatrix \
-  Crypt::Eksblowfish::Bcrypt
+  Crypt::Eksblowfish::Bcrypt \
+  || true
 
 # ---------------------------------------------------
 # 4. CRITICAL: Compile asterisk-perl-0.08 manually
