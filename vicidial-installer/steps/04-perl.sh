@@ -34,6 +34,17 @@ yum install -y \
   perl-Net-Ping \
   perl-libnet
 
+
+  yum install -y \
+  perl-LWP-Protocol-https \
+  perl-IO-Socket-SSL \
+  perl-Net-SSLeay \
+  ca-certificates
+
+  echo "[+] Installing CPAN HTTPS support"
+  echo "[+] Installing required CPAN modules (this may take time)"
+  export PERL_CPANM_OPT="--mirror https://cpan.metacpan.org --mirror-only"
+
 # ---------------------------------------------------
 # 2. Configure CPAN non-interactively (fallback safety)
 # ---------------------------------------------------
@@ -51,6 +62,13 @@ $CPAN::Config = {
 1;
 __END__
 EOF
+
+
+
+echo "[+] Required CPAN Check"
+perl -MLWP::Protocol::https -e 1 \
+  || { echo "[FATAL] Perl HTTPS support missing"; exit 1; }
+
 
 # ---------------------------------------------------
 # 3. Install critical CPAN modules (forced, legacy-safe)
