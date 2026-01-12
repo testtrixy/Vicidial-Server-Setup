@@ -34,8 +34,24 @@ mysql -u root asterisk -e "SELECT 1" &>/dev/null \
 asterisk -rx "core show uptime" &>/dev/null \
   && echo "[OK] Asterisk CLI" || echo "[FAIL] Asterisk CLI"
 
-curl -fs http://127.0.0.1/vicidial/admin.php &>/dev/null \
-  && echo "[OK] Web UI reachable" || echo "[FAIL] Web UI not reachable"
+
+  echo "[+] Checking VICIdial Web UI"
+
+  HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}" \
+    http://127.0.0.1/vicidial/admin.php || echo "000")
+
+  case "$HTTP_CODE" in
+    200|401)
+      echo "[OK] Web UI reachable (HTTP $HTTP_CODE)"
+      ;;
+    *)
+      echo "[FAIL] Web UI unreachable (HTTP $HTTP_CODE)"
+      ;;
+  esac
+
+
+
+
 
 echo "[INFO] DAHDI kernel modules not required on Rocky 8"
 

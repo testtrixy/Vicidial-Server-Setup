@@ -36,6 +36,22 @@ echo "=================================================="
 # Global SERVER_IP detection (used by multiple steps)
 # ---------------------------------------------------
 
+
+ #Force IPv4 public IP (browser-safe)
+PUBLIC_IP=$(curl -4 -s https://ifconfig.me || curl -4 -s https://icanhazip.com)
+
+if [[ ! "$PUBLIC_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "[FATAL] Could not determine IPv4 public IP"
+  exit 1
+fi
+
+export PUBLIC_IP
+echo "[OK] PUBLIC_IP set to $PUBLIC_IP"
+
+
+
+
+
 if [ -n "${PUBLIC_IP:-}" ]; then
   SERVER_IP="$PUBLIC_IP"
 else
