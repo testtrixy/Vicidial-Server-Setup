@@ -1,21 +1,26 @@
 #!/bin/bash
 set -euo pipefail
 
+# --------------------------------------------------
+# GLOBAL LOGGING
+# --------------------------------------------------
+LOG_DIR="/var/log/vicidial-installer"
+LOG_FILE="$LOG_DIR/install-$(date +%F_%H-%M-%S).log"
 
-echo "=============================="
-echo " VICIDIAL AUTO INSTALL Script "
-echo "=============================="
+mkdir -p "$LOG_DIR"
+chmod 755 "$LOG_DIR"
 
+# Export so ALL child scripts inherit it
+export LOG_FILE
 
-
-#-----------------------------------------
-
-LOG_FILE="/var/log/vicidial-installer.log"
-mkdir -p /var/log
-
+# Redirect all output
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-#----------------------------------------
+echo "=================================================="
+echo " VICIDIAL INSTALLER STARTED"
+echo " Log file: $LOG_FILE"
+echo "=================================================="
+
 
 if [ "$EUID" -ne 0 ]; then
   echo "Run as root"
