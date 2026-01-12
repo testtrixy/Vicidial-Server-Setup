@@ -37,17 +37,10 @@ asterisk -rx "core show uptime" &>/dev/null \
 
   echo "[+] Checking VICIdial Web UI"
 
-  HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}" \
-    http://127.0.0.1/vicidial/admin.php || echo "000")
 
-  case "$HTTP_CODE" in
-    200|401)
-      echo "[OK] Web UI reachable (HTTP $HTTP_CODE)"
-      ;;
-    *)
-      echo "[FAIL] Web UI unreachable (HTTP $HTTP_CODE)"
-      ;;
-  esac
+ curl -k -u 6666:1234 https://$PUBLIC_IP/vicidial/admin.php >/dev/null \
+  && echo "[OK] Web UI reachable over HTTPS" \
+  || echo "[FAIL] Web UI unreachable"
 
 
 
