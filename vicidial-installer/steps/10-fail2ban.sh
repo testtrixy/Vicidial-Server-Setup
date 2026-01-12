@@ -1,12 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$ROOT_DIR/config.env"
 
-[ "${FAIL2BAN_ENABLE}" != "1" ] && {
+[ "${FAIL2BAN_ENABLE:-0}" != "1" ] && {
   echo "[SKIP] Fail2Ban disabled"
   exit 0
 }
@@ -15,52 +14,136 @@ echo "=================================================="
 echo " STEP 10: Fail2Ban (SIP + AMI + WEB)"
 echo "=================================================="
 
-# Install packages
-yum install -y fail2ban iptables-services
+# ---------------------------------------------------
+# Install packages (idempotent)
+# ---------------------------------------------------
+dnf install -y fail2ban iptables-services
 
 systemctl enable iptables
-systemctl start iptables
+systemctl start iptables || true
 
 systemctl enable fail2ban
-systemctl start fail2ban
+systemctl start fail2ban || true
 
-# Create directories
+# ---------------------------------------------------
+# Prepare directories
+# ---------------------------------------------------
 mkdir -p /etc/fail2ban/filter.d
 mkdir -p /etc/fail2ban/jail.d
 
-# Copy filters
-cp "$ROOT_DIR/security/fail2ban/asterisk-sip.conf" \
-   /etc/fail2ban/filter.d/
+SEC_DIR="$ROOT_DIR/security/fail2ban"
 
-cp "$ROOT_DIR/security/fail2ban/asterisk-ami.conf" \
-   /etc/fail2ban/filter.d/
+# ---------------------------------------------------
+# Helper: safe copy or generate
+# ---------------------------------------------------
+safe_copy() {
+  local src="$1"
+  local dst="$2"
+  local name="$3"
 
-# Copy jails
-cp "$ROOT_DIR/security/fail2ban/jail-asterisk-sip.local" \
-   /etc/fail2ban/jail.d/
+  if [[ -f "$src" ]]; then
+    cp -f "$src" "$dst"
+    echo "[OK] Installed $name"
+  else
+    echo "[WARN] $name not found — generating default"
+    return 1
+  fi
+}
 
-cp "$ROOT_DIR/security/fail2ban/jail-asterisk-ami.local" \
-   /etc/fail2ban/jail.d/
+# ---------------------------------------------------
+# SIP filter
+# ---------------------------------------------------
+if ! safe_copy "$SEC_DIR/asterisk-sip.conf" \
+    /etc/fail2ban/filter.d/asterisk-sip.conf "asterisk-sip filter"; then
 
-cp "$ROOT_DIR/security/fail2ban/jail-apache-vicidial.local" \
-   /etc/fail2ban/jail.d/
+cat <<'EOF' > /etc/fail2ban/filter.d/asterisk-sip.conf
+[Definition]
+failregex = NOTICE.* .*: Registration from .* failed
+            NOTICE.* .*: Call from .* rejected
+ignoreregex =
+EOF
+fi
 
-# Replace variables
-sed -i \
-  -e "s/__SIP_PORTS__/${SIP_PORTS}/g" \
-  /etc/fail2ban/jail.d/jail-asterisk-sip.local
+# ---------------------------------------------------
+# AMI filter
+# ---------------------------------------------------
+if ! safe_copy "$SEC_DIR/asterisk-ami.conf" \
+    /etc/fail2ban/filter.d/asterisk-ami.conf "asterisk-ami filter"; then
 
-sed -i \
-  -e "s/__AMI_PORT__/${AMI_PORT}/g" \
-  /etc/fail2ban/jail.d/jail-asterisk-ami.local
+cat <<'EOF' > /etc/fail2ban/filter.d/asterisk-ami.conf
+[Definition]
+failregex = .*Manager '.*' failed authentication from.*
+ignoreregex =
+EOF
+fi
 
-# Configure ignore IPs
+# ---------------------------------------------------
+# SIP jail
+# ---------------------------------------------------
+if ! safe_copy "$SEC_DIR/jail-asterisk-sip.local" \
+    /etc/fail2ban/jail.d/jail-asterisk-sip.local "SIP jail"; then
+
+cat <<EOF > /etc/fail2ban/jail.d/jail-asterisk-sip.local
+[asterisk-sip]
+enabled = true
+filter = asterisk-sip
+action = iptables-allports[name=SIP]
+logpath = /var/log/asterisk/messages
+maxretry = 5
+bantime = 3600
+findtime = 600
+port = ${SIP_PORTS}
+EOF
+fi
+
+# ---------------------------------------------------
+# AMI jail
+# ---------------------------------------------------
+if ! safe_copy "$SEC_DIR/jail-asterisk-ami.local" \
+    /etc/fail2ban/jail.d/jail-asterisk-ami.local "AMI jail"; then
+
+cat <<EOF > /etc/fail2ban/jail.d/jail-asterisk-ami.local
+[asterisk-ami]
+enabled = true
+filter = asterisk-ami
+action = iptables-allports[name=AMI]
+logpath = /var/log/asterisk/messages
+maxretry = 3
+bantime = 3600
+findtime = 600
+port = ${AMI_PORT}
+EOF
+fi
+
+# ---------------------------------------------------
+# Apache jail
+# ---------------------------------------------------
+if ! safe_copy "$SEC_DIR/jail-apache-vicidial.local" \
+    /etc/fail2ban/jail.d/jail-apache-vicidial.local "Apache jail"; then
+
+cat <<'EOF' > /etc/fail2ban/jail.d/jail-apache-vicidial.local
+[apache-vicidial]
+enabled = true
+filter = apache-auth
+logpath = /var/log/httpd/*error_log
+maxretry = 5
+bantime = 3600
+findtime = 600
+EOF
+fi
+
+# ---------------------------------------------------
+# Global ignore IPs
+# ---------------------------------------------------
 cat <<EOF > /etc/fail2ban/jail.local
 [DEFAULT]
 ignoreip = ${FAIL2BAN_IGNORE_IPS}
 EOF
 
-# Restart
+# ---------------------------------------------------
+# Restart fail2ban safely
+# ---------------------------------------------------
 systemctl restart fail2ban
 
-echo "[OK] Fail2Ban configured and started"
+echo "[OK] Fail2Ban configured successfully"
+echo "=================================================="
