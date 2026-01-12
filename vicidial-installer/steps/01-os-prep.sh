@@ -1,6 +1,9 @@
 #!/bin/bash
 echo "=== STEP 01: OS Preparation ==="
 
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "[RUNNING] $0"
+
 
 
 

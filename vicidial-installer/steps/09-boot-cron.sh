@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "[RUNNING] $0"
+
+
 echo "=================================================="
 echo " STEP 09: Boot, Services & VICIdial Cron Setup"
 echo "=================================================="

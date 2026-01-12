@@ -2,6 +2,10 @@
 
 echo "=== STEP 00: Environment Check ==="
 
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "[RUNNING] $0"
+
+
 grep -q "Rocky Linux 8" /etc/os-release || { echo "Wrong OS"; exit 1; }
 
 nproc | awk '{ if ($1 < 2) print "WARN: Low CPU cores" }'

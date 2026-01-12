@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "[RUNNING] $0"
+
 # ---------------------------------------------------
 # STEP 04: Perl Runtime + Asterisk-Perl (VICIdial Safe)
 # ---------------------------------------------------

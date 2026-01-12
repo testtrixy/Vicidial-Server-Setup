@@ -1,6 +1,10 @@
 #!/bin/bash
 echo "=== STEP 02: Repositories & Base Packages ==="
 
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "[RUNNING] $0"
+
+
 yum -y install epel-release
 yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 yum -y install http://rpms.remirepo.net/enterprise/remi-release-8.rpm

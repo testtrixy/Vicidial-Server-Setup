@@ -1,9 +1,33 @@
 #!/bin/bash
 set -euo pipefail
 
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "[RUNNING] $0"
+
 # ---------------------------------------------------
 # STEP 08: VICIdial Core + Schema (Production Safe)
 # ---------------------------------------------------
+
+
+
+if [ -n "${PUBLIC_IP:-}" ]; then
+  SERVER_IP="$PUBLIC_IP"
+else
+  SERVER_IP=$(hostname -I | awk '{print $1}')
+  if echo "$SERVER_IP" | grep -Eq '^10\.|^192\.168|^172\.(1[6-9]|2[0-9]|3[0-1])'; then
+    SERVER_IP=$(curl -s https://ifconfig.me || true)
+  fi
+fi
+
+if [ -z "$SERVER_IP" ]; then
+  echo "[FATAL] SERVER_IP could not be determined"
+  exit 1
+fi
+
+echo "[+] Using SERVER_IP=$SERVER_IP"
+
+
+
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -29,15 +53,7 @@ command -v mysql >/dev/null || { echo "[FATAL] mysql client missing"; exit 1; }
 # ---------------------------------------------------
 # Detect server IP (prevents server_ip='')
 # ---------------------------------------------------
-if [ -n "$PUBLIC_IP" ]; then
-  SERVER_IP="$PUBLIC_IP"
-else
-  SERVER_IP=$(hostname -I | awk '{print $1}')
-fi
 
-[ -z "$SERVER_IP" ] && { echo "[FATAL] Unable to detect server IP"; exit 1; }
-
-echo "[+] Detected server IP: $SERVER_IP"
 
 # ---------------------------------------------------
 # Checkout / update VICIdial source
@@ -131,6 +147,32 @@ perl install.pl \
   --copy_sample_conf_files=y \
   --server_ip="$SERVER_IP"
 
+
+ 
+
+ # ---------------------------------------------------
+# Ensure VICIdial web root exists
+# ---------------------------------------------------
+
+WEB_ROOT="${WEB_ROOT:-/var/www/html}"
+VICI_WEB="${WEB_ROOT}/vicidial"
+
+if [ ! -d "$VICI_WEB" ]; then
+  echo "[+] Creating VICIdial web root"
+  mkdir -p "$VICI_WEB"
+
+  if [ -d "/usr/src/astguiclient/trunk/www" ]; then
+    cp -r /usr/src/astguiclient/trunk/www/* "$VICI_WEB/"
+  fi
+fi
+
+chown -R apache:apache "$VICI_WEB"
+chmod -R 755 "$VICI_WEB"
+
+echo "[OK] VICIdial web root ready: $VICI_WEB"
+
+  
+
 # ---------------------------------------------------
 # Schema version tracking
 # ---------------------------------------------------
@@ -142,7 +184,16 @@ mysql -u root ${AST_DB} -e \
 # Post-install VICIdial scripts
 # ---------------------------------------------------
 /usr/share/astguiclient/ADMIN_area_code_populate.pl --purge-table --debug || true
-/usr/share/astguiclient/ADMIN_update_server_ip.pl --old-server_ip=127.0.0.1 || true
+
+#/usr/share/astguiclient/ADMIN_update_server_ip.pl --old-server_ip=127.0.0.1 || true
+
+ SERVER_IP="${SERVER_IP:?SERVER_IP not set}"
+
+mysql -u root ${DB_NAME} -e "
+UPDATE servers SET server_ip='${SERVER_IP}', active_twin_server_ip='${SERVER_IP}';
+UPDATE system_settings SET active_voicemail_server='${SERVER_IP}';
+UPDATE servers SET rebuild_conf_files='Y';
+"
 
 # ---------------------------------------------------
 # Permissions safety
