@@ -60,6 +60,18 @@ if ! command -v asterisk >/dev/null 2>&1; then
   exit 1
 fi
 
+
+
+# ---------------------------------------------------
+# Ensure asterisk user exists (Rocky-safe)
+# ---------------------------------------------------
+
+if ! id asterisk &>/dev/null; then
+  echo "[+] Creating asterisk system user"
+  useradd -r -d /var/lib/asterisk -s /sbin/nologin asterisk
+fi
+
+
 echo "[OK] Asterisk installed successfully"
 echo "=================================================="
 
