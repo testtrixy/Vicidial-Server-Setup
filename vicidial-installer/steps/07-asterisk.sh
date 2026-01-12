@@ -120,6 +120,10 @@ if ! id asterisk &>/dev/null; then
   useradd -r -d /var/lib/asterisk -s /sbin/nologin asterisk
 fi
 
+
+echo ">>> EXECUTING STEP 07 FROM: $(realpath "$0")"
+sleep 2
+
 # ---------------------------------------------------
 # 7. Timing verification (NO DAHDI REQUIRED)
 # ---------------------------------------------------
