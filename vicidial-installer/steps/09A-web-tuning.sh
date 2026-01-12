@@ -1,60 +1,70 @@
 #!/bin/bash
 set -euo pipefail
 
-exec > >(tee -a "$LOG_FILE") 2>&1
-echo "[RUNNING] $0"
-
 echo "=================================================="
 echo " STEP 09A: APACHE & PHP UI STABILITY TUNING"
 echo "=================================================="
 
-APACHE_CONF="/etc/httpd/conf/httpd.conf"
+# ---------------------------------------------------
+# Sanity check: must be run via installer
+# ---------------------------------------------------
+if [[ -z "${LOG_FILE:-}" ]]; then
+  echo "[FATAL] LOG_FILE not set — run via install.sh"
+  exit 1
+fi
 
 # ---------------------------------------------------
-# Apache Directory permissions for VICIdial
+# Apache Directory permissions (BEST PRACTICE)
 # ---------------------------------------------------
-
 echo "[+] Configuring Apache directory permissions"
 
-if ! grep -q 'Directory "/var/www/html"' "$APACHE_CONF"; then
-  cat <<'EOF' >> "$APACHE_CONF"
+APACHE_VHOST="/etc/httpd/conf.d/vicidial.conf"
 
+cat <<'EOF' > "$APACHE_VHOST"
 # VICIdial Web UI Permissions
 <Directory "/var/www/html">
     AllowOverride All
     Require all granted
 </Directory>
 EOF
-else
-  # Ensure required directives exist
-  sed -i \
-    -e '/<Directory "\/var\/www\/html">/,/<\/Directory>/ s/AllowOverride .*/AllowOverride All/' \
-    -e '/<Directory "\/var\/www\/html">/,/<\/Directory>/ s/Require .*/Require all granted/' \
-    "$APACHE_CONF"
-fi
 
 echo "[OK] Apache permissions configured"
 
+# ---------------------------------------------------
+# Detect php.ini reliably (Rocky 8 / Remi safe)
+# ---------------------------------------------------
+PHP_INI=""
 
+if command -v php >/dev/null 2>&1; then
+  PHP_INI=$(php --ini 2>/dev/null | awk -F': ' '/Loaded Configuration/{print $2}')
+fi
+
+if [[ -z "$PHP_INI" || ! -f "$PHP_INI" ]]; then
+  if [[ -f /etc/opt/remi/php74/php.ini ]]; then
+    PHP_INI="/etc/opt/remi/php74/php.ini"
+  else
+    echo "[FATAL] php.ini not found — PHP not installed correctly"
+    exit 1
+  fi
+fi
+
+echo "[+] Using php.ini: $PHP_INI"
 
 # ---------------------------------------------------
-# PHP.ini tuning for VICIdial Admin UI
+# PHP tuning (IDEMPOTENT)
 # ---------------------------------------------------
-
-PHP_INI=$(php --ini | awk -F': ' '/Loaded Configuration/{print $2}')
-
-echo "[+] Tuning PHP settings in $PHP_INI"
-
-set_php_ini () {
+set_php_ini() {
   local key="$1"
   local value="$2"
 
-  if grep -q "^$key" "$PHP_INI"; then
-    sed -i "s|^$key.*|$key = $value|" "$PHP_INI"
+  if grep -qE "^$key\s*=" "$PHP_INI"; then
+    sed -i "s|^$key\s*=.*|$key = $value|" "$PHP_INI"
   else
     echo "$key = $value" >> "$PHP_INI"
   fi
 }
+
+echo "[+] Applying PHP performance tuning"
 
 set_php_ini memory_limit 512M
 set_php_ini max_execution_time 360
@@ -62,10 +72,18 @@ set_php_ini max_input_time 360
 
 echo "[OK] PHP settings applied"
 
-
-
-echo "[+] Restarting Apache & PHP"
+# ---------------------------------------------------
+# Restart services safely
+# ---------------------------------------------------
+echo "[+] Restarting web services"
 
 systemctl restart httpd
 
-echo "[OK] Web stack restarted"
+if systemctl list-unit-files | grep -q php74-php-fpm; then
+  systemctl restart php74-php-fpm
+elif systemctl list-unit-files | grep -q php-fpm; then
+  systemctl restart php-fpm
+fi
+
+echo "[OK] Apache & PHP restarted successfully"
+echo "=================================================="
