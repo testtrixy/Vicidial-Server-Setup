@@ -1,0 +1,1 @@
+dahdi_cfg -t >/dev/null || fail "No DAHDI timing source"
