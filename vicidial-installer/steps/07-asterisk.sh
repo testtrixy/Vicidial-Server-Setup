@@ -63,16 +63,18 @@ make menuselect
 }
 
 # ---------------------------------------------------
-# 4. Enable VICIdial modules
+# 4. Force non-interactive menuselect
 # ---------------------------------------------------
-echo "[+] Selecting VICIdial modules"
+echo "[+] Forcing non-interactive menuselect"
+
+# Ensure makeopts exists to prevent menu popup
+touch menuselect.makeopts
 
 menuselect/menuselect \
   --enable app_meetme \
   --enable res_http_websocket \
   --enable res_srtp \
   menuselect.makeopts
-
 # ---------------------------------------------------
 # 5. Build & install
 # ---------------------------------------------------
