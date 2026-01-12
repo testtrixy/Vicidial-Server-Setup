@@ -2,10 +2,6 @@
 set -euo pipefail
 
 
-exec > >(tee -a "$LOG_FILE") 2>&1
-echo "[RUNNING] $0"
-
-
 ASTERISK_VER="13.29.2"
 ASTERISK_TARBALL="asterisk-${ASTERISK_VER}-vici.tar.gz"
 ASTERISK_URL="http://download.vicidial.com/required-apps/${ASTERISK_TARBALL}"

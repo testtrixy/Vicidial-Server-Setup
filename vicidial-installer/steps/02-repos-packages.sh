@@ -1,60 +1,118 @@
 #!/bin/bash
-echo "=== STEP 02: Repositories & Base Packages ==="
+set -euo pipefail
 
-exec > >(tee -a "$LOG_FILE") 2>&1
-echo "[RUNNING] $0"
+echo "=================================================="
+echo " STEP 02: Repositories & Base Packages"
+echo "=================================================="
 
+# ---------------------------------------------------
+# Sanity: must be run via installer
+# ---------------------------------------------------
+if [[ -z "${LOG_FILE:-}" ]]; then
+  echo "[FATAL] LOG_FILE not set — run via install.sh"
+  exit 1
+fi
 
-yum -y install epel-release
-yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
-yum -y install http://rpms.remirepo.net/enterprise/remi-release-8.rpm
-yum -y install yum-utils
+# ---------------------------------------------------
+# Enable repositories (IDEMPOTENT)
+# ---------------------------------------------------
+echo "[+] Enabling EPEL & Remi repositories"
 
+dnf install -y epel-release
+dnf install -y https://rpms.remirepo.net/enterprise/remi-release-8.rpm
+dnf install -y dnf-utils
+
+dnf config-manager --set-enabled powertools || true
+
+# Enable PHP 7.4 from Remi
+dnf module reset php -y
 dnf module enable php:remi-7.4 -y
-dnf config-manager --set-enabled powertools
 
-echo "[+] Installing development tools"
-yum groupinstall "Development Tools" -y
+# ---------------------------------------------------
+# Development tools (Asterisk / Perl build)
+# ---------------------------------------------------
+echo "[+] Installing Development Tools"
 
-echo "[+] Installing system packages"
+dnf groupinstall -y "Development Tools"
 
+# ---------------------------------------------------
+# Core system utilities
+# ---------------------------------------------------
+echo "[+] Installing core system utilities"
 
-
-yum install -y \
-php php-cli php-gd php-curl php-mysql php-ldap php-zip php-mbstring \
-php-imap php-xml php-xmlrpc php-pear php-opcache \
-httpd wget unzip curl screen sox sendmail mutt \
-kernel-devel kernel-headers openssl-devel \
-libpcap libpcap-devel ncurses-devel newt-devel \
-htop iftop certbot mod_ssl mariadb-devel \
-subversion 
-
-
-yum install -y \
+dnf install -y \
+  tar \
+  curl \
+  wget \
+  unzip \
+  screen \
+  which \
+  net-tools \
+  htop \
+  iftop \
   nc \
-  mutt \
   patch \
-  libedit-devel
+  sox \
+  sendmail \
+  mutt \
+  certbot \
+  mod_ssl
 
-  
+# ---------------------------------------------------
+# Apache + PHP (Remi 7.4)
+# ---------------------------------------------------
+echo "[+] Installing Apache & PHP"
 
+dnf install -y \
+  httpd \
+  php \
+  php-cli \
+  php-common \
+  php-mysqlnd \
+  php-gd \
+  php-mbstring \
+  php-xml \
+  php-json \
+  php-opcache \
+  php-ldap \
+  php-imap \
+  php-zip \
+  php-curl \
+  php-pear
 
+# ---------------------------------------------------
+# Asterisk build dependencies
+# ---------------------------------------------------
+echo "[+] Installing Asterisk dependencies"
 
-yum install -y \
-perl-File-Which \
-libxml2-devel \
-sqlite-devel \
-libuuid-devel \
-ImageMagick \
-lame-devel
+dnf install -y \
+  openssl-devel \
+  ncurses-devel \
+  newt-devel \
+  libxml2-devel \
+  libuuid-devel \
+  libedit-devel \
+  jansson-devel \
+  sqlite-devel \
+  libpcap \
+  libpcap-devel \
+  ImageMagick \
+  lame-devel
 
+# ---------------------------------------------------
+# Database / SVN / Misc
+# ---------------------------------------------------
+echo "[+] Installing database & version control tools"
 
+dnf install -y \
+  mariadb-devel \
+  subversion \
+  perl-File-Which
 
+# ---------------------------------------------------
+# Security tooling (used later)
+# ---------------------------------------------------
+dnf install -y fail2ban || true
 
-
-
-echo "[OK] Repos & packages installed"
-
-
-# need to add these 
-# perl-File-Which libpcap-devel newt-devel libxml2-devel sqlite-devel libuuid-devel sendmail ImageMagick
+echo "[OK] Repositories & packages installed successfully"
+echo "=================================================="

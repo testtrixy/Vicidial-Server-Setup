@@ -1,8 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-exec > >(tee -a "$LOG_FILE") 2>&1
-echo "[RUNNING] $0"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"

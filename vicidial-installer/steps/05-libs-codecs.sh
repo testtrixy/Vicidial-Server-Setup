@@ -1,8 +1,6 @@
 #!/bin/bash
 echo "=== STEP 05: Codecs & Libraries ==="
 
-exec > >(tee -a "$LOG_FILE") 2>&1
-echo "[RUNNING] $0"
 
 dnf --enablerepo=powertools install libsrtp-devel -y
 
