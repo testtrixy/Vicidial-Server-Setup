@@ -23,6 +23,10 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 
+echo "=================================================="
+echo " VICIDIAL INSTALLER STARTED: $(date)"
+echo "=================================================="
+
 # ---------------------------------------------------
 # Global SERVER_IP detection (used by multiple steps)
 # ---------------------------------------------------
@@ -169,12 +173,12 @@ echo "[OK] server_ip normalized across database"
 
 
 
-
-
-
-echo "=============================="
-echo " INSTALL COMPLETED SUCCESSFULLY "
-echo "=============================="
-
 echo "Running health check..."
 bash ./health-check.sh
+
+
+
+
+echo "=================================================="
+echo " VICIDIAL INSTALLER Ended: $(date)"
+echo "=================================================="
