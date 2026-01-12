@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 
 echo "=============================="
@@ -7,15 +8,19 @@ echo "=============================="
 
 
 
+#-----------------------------------------
+
+LOG_FILE="/var/log/vicidial-installer.log"
+mkdir -p /var/log
+
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+#----------------------------------------
 
 if [ "$EUID" -ne 0 ]; then
   echo "Run as root"
   exit 1
 fi
-
-#!/bin/bash
-set -euo pipefail
-
 
 
 # ---------------------------------------------------
