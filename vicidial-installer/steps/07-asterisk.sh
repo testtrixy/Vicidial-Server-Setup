@@ -77,12 +77,15 @@ make menuselect
 # Enable VICIdial-required modules
 # ---------------------------------------------------
 echo "[+] Enabling VICIdial modules"
+echo "[+] Selecting required Asterisk modules (VICIdial safe)"
 
 menuselect/menuselect \
   --enable app_meetme \
   --enable res_http_websocket \
   --enable res_srtp \
+  --disable format_mp3 \
   menuselect.makeopts
+
 
 # ---------------------------------------------------
 # Build & install Asterisk
