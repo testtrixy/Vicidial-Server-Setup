@@ -1,24 +1,40 @@
 #!/bin/bash
-echo "=== STEP 06: DAHDI ==="
 
-cd /usr/src
-wget -q http://downloads.asterisk.org/pub/telephony/dahdi-linux-complete/dahdi-linux-complete-current.tar.gz
-tar xzf dahdi-linux-complete-current.tar.gz
-cd dahdi-linux-complete-*
+#!/bin/bash
+set -euo pipefail
 
-sed -i '/pci-aspm/d' linux/include/dahdi/kernel.h
+echo "=================================================="
+echo " STEP 06: DAHDI (Userspace only – Rocky 8 safe)"
+echo "=================================================="
 
-make && make install && make install-config
-yum install -y dahdi-tools-libs
+# ---------------------------------------------------
+# Rocky Linux 8 does NOT support DAHDI kernel modules
+# VICIdial uses Asterisk internal timing instead
+# ---------------------------------------------------
 
+echo "[INFO] Skipping DAHDI kernel module build (unsupported on Rocky 8)"
 
-echo "dahdi_dummy" > /etc/modules-load.d/dahdi.conf
-modprobe dahdi_dummy
+# ---------------------------------------------------
+# Install userspace tools ONLY (optional but safe)
+# ---------------------------------------------------
+echo "[+] Installing DAHDI userspace utilities (if available)"
 
-modprobe dahdi
-/usr/sbin/dahdi_cfg -vvvvvvvvvvvvv || true
-lsmod | grep dahdi || echo "WARN: DAHDI not loaded"
+dnf install -y dahdi-tools dahdi-tools-libs || true
 
+# ---------------------------------------------------
+# Ensure no legacy DAHDI autoload configs exist
+# ---------------------------------------------------
+rm -f /etc/modules-load.d/dahdi.conf 2>/dev/null || true
+rm -f /etc/sysconfig/dahdi 2>/dev/null || true
 
+# ---------------------------------------------------
+# Informational checks (non-fatal)
+# ---------------------------------------------------
+if command -v dahdi_cfg >/dev/null 2>&1; then
+  echo "[INFO] dahdi_cfg present (not required)"
+else
+  echo "[INFO] dahdi_cfg not present (expected on Rocky 8)"
+fi
 
-echo "[OK] DAHDI installed"
+echo "[OK] DAHDI step completed (no kernel modules used)"
+echo "=================================================="
