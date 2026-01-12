@@ -16,16 +16,16 @@ cd /usr/src
 [ -d "$SRC" ] || tar xzf "asterisk-${ASTERISK_VER}-vici.tar.gz"
 cd "$SRC"
 
-echo "[+] Fetching MP3 source"
+# MP3 codec (prevents format_mp3 warnings)
 contrib/scripts/get_mp3_source.sh || true
 
-echo "[+] Configuring"
-./configure --libdir=/usr/lib64 --with-pjproject-bundled --with-jansson-bundled
+./configure \
+  --libdir=/usr/lib64 \
+  --with-pjproject-bundled \
+  --with-jansson-bundled
 
-echo "[+] Building menuselect"
 make menuselect
 
-touch menuselect.makeopts
 menuselect/menuselect \
   --enable app_meetme \
   --enable res_http_websocket \
@@ -33,15 +33,13 @@ menuselect/menuselect \
   --enable format_mp3 \
   menuselect.makeopts
 
-echo "[+] Building Asterisk"
 make -j"$(nproc)"
-
-echo "[+] Installing"
 make install
-
-[ -f /etc/asterisk/asterisk.conf ] || make samples
 make config
 
+# Asterisk user & runtime dirs
 id asterisk &>/dev/null || useradd -r -d /var/lib/asterisk -s /sbin/nologin asterisk
+mkdir -p /var/run/asterisk /var/log/asterisk
+chown -R asterisk:asterisk /var/run/asterisk /var/log/asterisk
 
-echo "[OK] Asterisk installed (timing handled at runtime)"
+echo "[OK] Asterisk installed (Rocky 8 timing model)"
