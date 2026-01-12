@@ -16,6 +16,31 @@ fi
 #!/bin/bash
 set -euo pipefail
 
+
+
+# ---------------------------------------------------
+# Global SERVER_IP detection (used by multiple steps)
+# ---------------------------------------------------
+
+if [ -n "${PUBLIC_IP:-}" ]; then
+  SERVER_IP="$PUBLIC_IP"
+else
+  SERVER_IP=$(hostname -I | awk '{print $1}')
+
+  # If private IP, try public detection (cloud-safe)
+  if echo "$SERVER_IP" | grep -Eq '^10\.|^192\.168|^172\.(1[6-9]|2[0-9]|3[0-1])'; then
+    SERVER_IP=$(curl -s https://ifconfig.me || true)
+  fi
+fi
+
+if [ -z "${SERVER_IP:-}" ]; then
+  echo "[FATAL] SERVER_IP could not be determined"
+  exit 1
+fi
+
+export SERVER_IP
+echo "[+] Using SERVER_IP=$SERVER_IP"
+
 # ---------------------------------------------------
 # VICIdial Installer — Rollback Safety Gate
 # ---------------------------------------------------
@@ -96,6 +121,8 @@ done
 # ---------------------------------------------------
 # Force-correct server_ip everywhere (idempotent)
 # ---------------------------------------------------
+
+
 
 mysql -u root ${DB_NAME} <<EOF
 UPDATE servers
