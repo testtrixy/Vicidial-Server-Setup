@@ -39,12 +39,7 @@ fi
 
 
 
-
-
-
 trap 'set +e; ./rollback.sh || true; exit 1' ERR
-
-
 
 set -e
 
@@ -70,7 +65,7 @@ STEPS=(
   "07-asterisk.sh"
   "08-vicidial.sh"
   "09-boot-cron.sh"
-  "09A-web-tuning"
+  "09A-web-tuning.sh"
   "10-fail2ban.sh"
 )
 
@@ -92,6 +87,56 @@ for STEP in "${STEPS[@]}"; do
     echo "[OK] $STEP completed"
   fi
 done
+
+
+
+
+
+
+# ---------------------------------------------------
+# Force-correct server_ip everywhere (idempotent)
+# ---------------------------------------------------
+
+mysql -u root ${DB_NAME} <<EOF
+UPDATE servers
+  SET server_ip='${SERVER_IP}',
+      active_twin_server_ip='${SERVER_IP}';
+
+UPDATE system_settings
+  SET active_voicemail_server='${SERVER_IP}';
+
+UPDATE phones
+  SET server_ip='${SERVER_IP}'
+  WHERE server_ip='' OR server_ip='127.0.0.1';
+
+UPDATE vicidial_conferences
+  SET server_ip='${SERVER_IP}'
+  WHERE server_ip='' OR server_ip='127.0.0.1';
+
+UPDATE vicidial_confbridges
+  SET server_ip='${SERVER_IP}'
+  WHERE server_ip='' OR server_ip='127.0.0.1';
+
+UPDATE vicidial_inbound_dids
+  SET server_ip='${SERVER_IP}',
+      filter_server_ip='${SERVER_IP}';
+
+UPDATE vicidial_server_trunks
+  SET server_ip='${SERVER_IP}';
+
+UPDATE vicidial_server_carriers
+  SET server_ip='${SERVER_IP}';
+
+UPDATE servers SET rebuild_conf_files='Y';
+EOF
+
+echo "[OK] server_ip normalized across database"
+
+
+
+
+
+
 
 
 
