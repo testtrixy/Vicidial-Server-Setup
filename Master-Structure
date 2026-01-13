@@ -1,0 +1,111 @@
+vicidial-installer/
+├── install.sh                  # 🔥 MAIN ORCHESTRATOR (entrypoint)
+├── README.md                   # High-level usage & phases
+├── VERSION
+
+├── config/
+│   ├── installer.conf          # Global non-secret config (timezone, domain, versions)
+│   ├── secrets.env             # 🔒 Passwords, AMI secrets, DB creds (gitignored)
+│   └── versions.conf           # Asterisk, DAHDI, LibPRI versions
+
+├── lib/
+│   ├── common.sh               # Logging, colors, run_stage(), fatal()
+│   ├── os.sh                   # OS detection & validation
+│   ├── render.sh               # Template rendering (envsubst / sed)
+│   └── guards.sh               # Idempotency markers, safety checks
+
+├── stages/
+│   ├── 00-preflight/
+│   │   ├── 00-check-root.sh
+│   │   ├── 01-check-os.sh
+│   │   └── 02-disable-selinux.sh
+│
+│   ├── 01-os/
+│   │   ├── 00-rocky9-base.sh
+│   │   ├── 01-repos.sh
+│   │   ├── 02-firewall.sh
+│   │   └── 03-timezone.sh
+│
+│   ├── 02-web-db/
+│   │   ├── 01-install-apache.sh
+│   │   ├── 02-install-php74.sh
+│   │   ├── 03-install-mariadb.sh
+│   │   └── 04-mariadb-tuning.sh
+│
+│   ├── 03-build-tools/
+│   │   ├── 01-devtools.sh
+│   │   ├── 02-perl-modules.sh
+│   │   └── 03-missing-libs.sh
+│
+│   ├── 04-telephony/
+│   │   ├── 01-install-dahdi.sh
+│   │   ├── 02-install-libpri.sh
+│   │   ├── 03-install-jansson-srtp.sh
+│   │   ├── 04-download-asterisk.sh
+│   │   ├── 05-apply-vicidial-patches.sh
+│   │   ├── 06-build-asterisk.sh
+│   │   └── 07-install-asterisk.sh
+│
+│   ├── 05-asterisk-config/
+│   │   ├── 01-modules-conf.sh
+│   │   ├── 02-ami-conf.sh
+│   │   ├── 03-ami-harden.sh
+│   │   └── 04-sip-core.sh
+│
+│   ├── 06-vicidial/
+│   │   ├── 01-install-astguiclient.sh
+│   │   ├── 02-db-bootstrap.sh
+│   │   ├── 03-run-install-pl.sh
+│   │   ├── 04-permissions.sh
+│   │   └── 05-cron-install.sh
+│
+│   ├── 07-extras/
+│   │   ├── 01-certbot.sh
+│   │   ├── 02-cyburphone.sh
+│   │   └── 03-dynportal.sh
+│
+│   └── 99-post/
+│       ├── 01-healthcheck.sh
+│       ├── 02-summary.sh
+│       └── 03-reboot-hint.sh
+│
+├── templates/
+│   ├── asterisk/
+│   │   ├── modules.conf.tpl
+│   │   ├── manager.conf.tpl
+│   │   ├── sip.conf.tpl
+│   │   └── pjsip.conf.tpl
+│   │
+│   ├── apache/
+│   │   └── vicidial.conf.tpl
+│   │
+│   └── mariadb/
+│       └── my.cnf.tpl
+│
+├── sql/
+│   ├── asterisk/
+│   │   ├── MySQL_AST_CREATE_tables.sql
+│   │   ├── MySQL_AST_CREATE_tables-vicidial.sql
+│   │   └── MySQL_AST_CREATE_queues.sql
+│   │
+│   └── vicidial/
+│       └── initial-data.sql
+│
+├── tools/
+│   ├── patch-audit.sh          # Verifies Vicidial patches applied
+│   ├── ami-test.sh             # Tests AMI login
+│   └── dialplan-dump.sh
+│
+├── health/
+│   ├── healthcheck.sh
+│   └── checks/
+│       ├── 01-os.sh
+│       ├── 02-packages.sh
+│       ├── 03-asterisk.sh
+│       ├── 04-ami.sh
+│       ├── 05-db.sh
+│       ├── 06-astguiclient.sh
+│       ├── 07-cron.sh
+│       └── 08-dialer.sh
+│
+└── .gitignore
