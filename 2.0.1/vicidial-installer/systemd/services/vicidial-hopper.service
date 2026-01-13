@@ -1,0 +1,18 @@
+[Unit]
+Description=VICIDIAL Dial Hopper
+After=vicidial-keepalive.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/perl /usr/share/astguiclient/AST_VDhopper.pl -q
+Restart=always
+RestartSec=5
+User=root
+Nice=-10
+LimitNOFILE=65536
+
+StandardOutput=append:/var/log/astguiclient/hopper.log
+StandardError=append:/var/log/astguiclient/hopper.error.log
+
+[Install]
+WantedBy=multi-user.target

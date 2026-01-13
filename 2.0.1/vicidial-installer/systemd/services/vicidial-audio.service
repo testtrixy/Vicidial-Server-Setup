@@ -1,0 +1,6 @@
+[Unit]
+Description=VICIDIAL Audio Processor
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/perl /usr/share/astguiclient/AST_CRON_audio_1_move_mix.pl

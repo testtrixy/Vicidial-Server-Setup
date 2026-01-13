@@ -31,3 +31,11 @@ run_stage() {
   bash "$INSTALL_ROOT/stages/$stage.sh"
   state_mark_done "$stage"
 }
+
+
+run() {
+  log "▶ $1"
+  bash "$1"
+  log "✔ Completed: $1"
+}
+

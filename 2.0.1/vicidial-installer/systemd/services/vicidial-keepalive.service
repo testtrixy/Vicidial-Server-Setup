@@ -1,0 +1,19 @@
+[Unit]
+Description=VICIDIAL Keepalive Supervisor
+After=network.target mariadb.service asterisk.service
+Requires=asterisk.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/perl /usr/share/astguiclient/ADMIN_keepalive_ALL.pl
+Restart=always
+RestartSec=5
+User=root
+Nice=-5
+LimitNOFILE=65536
+
+StandardOutput=append:/var/log/astguiclient/keepalive.log
+StandardError=append:/var/log/astguiclient/keepalive.error.log
+
+[Install]
+WantedBy=multi-user.target

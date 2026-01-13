@@ -1,0 +1,6 @@
+[Unit]
+Description=VICIDIAL Database Optimization
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/perl /usr/share/astguiclient/AST_DB_optimize.pl

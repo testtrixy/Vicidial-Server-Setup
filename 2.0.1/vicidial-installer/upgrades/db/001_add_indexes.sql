@@ -1,0 +1,1 @@
+ALTER TABLE vicidial_log ADD INDEX(call_date);

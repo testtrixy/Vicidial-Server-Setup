@@ -1,0 +1,16 @@
+[Unit]
+Description=VICIDIAL Hung Call Killer
+After=asterisk.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/perl /usr/share/astguiclient/AST_manager_kill_hung_congested.pl
+Restart=always
+RestartSec=10
+User=root
+
+StandardOutput=append:/var/log/astguiclient/hungcalls.log
+StandardError=append:/var/log/astguiclient/hungcalls.error.log
+
+[Install]
+WantedBy=multi-user.target

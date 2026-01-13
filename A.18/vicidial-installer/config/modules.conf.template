@@ -1,0 +1,49 @@
+[modules]
+autoload=yes
+noload=pbx_ael.so
+noload=pbx_lua.so
+noload=pbx_realtime.so
+
+; Console / local audio
+noload=chan_alsa.so
+noload=chan_oss.so
+noload=chan_console.so
+
+; Old / unused protocols
+noload=chan_skinny.so
+noload=chan_ooh323.so
+noload=chan_mgcp.so
+noload=chan_unistim.so
+
+; Messaging / fax / misc
+noload=res_fax.so
+noload=res_jabber.so
+noload=res_phoneprov.so
+
+; Database / realtime conflicts
+noload=res_config_sqlite.so
+noload=res_config_sqlite3.so
+noload=cdr_sqlite3_custom.so
+noload=cdr_sqlite3.so
+noload=cel_sqlite3_custom.so
+
+; CDR conflicts (VICIDIAL does its own logging)
+noload=cdr_csv.so
+noload=cdr_custom.so
+noload=cdr_manager.so
+noload=cdr_syslog.so
+noload=func_cdr.so
+noload=app_cdr.so
+
+; Dangerous / unused apps
+noload=app_dictate.so
+noload=app_festival.so
+noload=app_minivm.so
+noload=app_url.so
+noload=app_image.so
+noload=app_sms.so
+noload=app_talkdetect.so
+
+; Realtime funcs
+noload=func_realtime.so
+noload=func_shell.so
