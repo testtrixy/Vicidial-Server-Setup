@@ -1,0 +1,4 @@
+[AGENT_EXT](endpoint-template)
+auth=AGENT_EXT-auth
+aors=AGENT_EXT-aor
+callerid="Agent AGENT_EXT" <AGENT_EXT>
