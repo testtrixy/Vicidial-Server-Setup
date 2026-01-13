@@ -1,56 +1,90 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
-### CONFIG
-AST_MAJOR="18"
-PATCH_BASE_URL="https://download.vicidial.com/asterisk-patches/Asterisk-${AST_MAJOR}"
-SRC_BASE="/usr/src"
-LOG="/var/log/vicidial-asterisk-patch.log"
+############################################
+# Apply Official Vicidial Asterisk 18 Patches
+# Rocky Linux 9
+############################################
 
-echo "===================================================" | tee -a "$LOG"
-echo "[INFO] VICIDIAL Asterisk ${AST_MAJOR} Patch Stage" | tee -a "$LOG"
-echo "===================================================" | tee -a "$LOG"
+SCRIPT_NAME=$(basename "$0")
+LOG_FILE="/var/log/vicidial-installer.log"
 
-### FIND ASTERISK SOURCE DIR
-AST_SRC_DIR=$(find "$SRC_BASE" -maxdepth 1 -type d -name "asterisk-${AST_MAJOR}*" | head -n 1)
+exec > >(tee -a "$LOG_FILE") 2>&1
 
-if [[ -z "$AST_SRC_DIR" ]]; then
-  echo "[FATAL] Asterisk ${AST_MAJOR} source directory not found in $SRC_BASE" | tee -a "$LOG"
+ASTERISK_SRC="/usr/src/asterisk"
+PATCH_BASE_URL="https://download.vicidial.com/asterisk-patches/Asterisk-18"
+PATCH_DIR="/usr/src/vicidial-patches/asterisk-18"
+
+echo "================================================="
+echo "[$SCRIPT_NAME] Applying Vicidial patches"
+echo "================================================="
+
+### --- SAFETY ---
+if [[ $EUID -ne 0 ]]; then
+  echo "[ERROR] Must be run as root"
   exit 1
 fi
 
-echo "[OK] Found Asterisk source: $AST_SRC_DIR" | tee -a "$LOG"
-cd "$AST_SRC_DIR"
-
-### FETCH PATCH LIST
-echo "[INFO] Fetching patch list from VICIDIAL..." | tee -a "$LOG"
-
-PATCH_LIST=$(curl -fsSL "$PATCH_BASE_URL/" | \
-  grep -oE 'href="[^"]+\.patch"' | \
-  cut -d'"' -f2 | sort -u)
-
-if [[ -z "$PATCH_LIST" ]]; then
-  echo "[FATAL] No patches found at $PATCH_BASE_URL" | tee -a "$LOG"
+if [[ ! -d "$ASTERISK_SRC" ]]; then
+  echo "[ERROR] Asterisk source not found at $ASTERISK_SRC"
   exit 1
 fi
 
-echo "[OK] Found $(echo "$PATCH_LIST" | wc -l) patches" | tee -a "$LOG"
+command -v patch >/dev/null || {
+  echo "[ERROR] patch utility missing"
+  exit 1
+}
 
-### APPLY PATCHES
-APPLIED=0
+### --- PATCH LIST (OFFICIAL VICIDIAL) ---
+PATCHES=(
+  "18.0-queue-rules.patch"
+  "18.0-amd-fix.patch"
+  "18.0-sip-dialplan-fix.patch"
+)
 
-for PATCH in $PATCH_LIST; do
-  echo "[PATCH] Applying $PATCH" | tee -a "$LOG"
+### --- PREPARE PATCH DIR ---
+mkdir -p "$PATCH_DIR"
+cd "$PATCH_DIR"
 
-  curl -fsSL "${PATCH_BASE_URL}/${PATCH}" | patch -p1 >> "$LOG" 2>&1 || {
-    echo "[FATAL] Patch failed: $PATCH" | tee -a "$LOG"
-    echo "Check log: $LOG"
-    exit 1
-  }
-
-  ((APPLIED++))
+### --- DOWNLOAD PATCHES ---
+for PATCH in "${PATCHES[@]}"; do
+  if [[ ! -f "$PATCH" ]]; then
+    echo "[INFO] Downloading $PATCH"
+    curl -fLO "${PATCH_BASE_URL}/${PATCH}"
+  else
+    echo "[INFO] Patch already downloaded: $PATCH"
+  fi
 done
 
-echo "---------------------------------------------------" | tee -a "$LOG"
-echo "[SUCCESS] Applied $APPLIED VICIDIAL patches" | tee -a "$LOG"
-echo "---------------------------------------------------" | tee -a "$LOG"
+### --- APPLY PATCHES ---
+cd "$ASTERISK_SRC"
+
+for PATCH in "${PATCHES[@]}"; do
+  echo "-------------------------------------------------"
+  echo "[INFO] Applying patch: $PATCH"
+
+  if patch -p1 --dry-run < "${PATCH_DIR}/${PATCH}" >/dev/null 2>&1; then
+    patch -p1 < "${PATCH_DIR}/${PATCH}"
+    echo "[OK] Applied: $PATCH"
+  else
+    echo "[WARN] Patch $PATCH may already be applied or incompatible"
+    echo "[INFO] Attempting reverse check..."
+
+    if patch -p1 -R --dry-run < "${PATCH_DIR}/${PATCH}" >/dev/null 2>&1; then
+      echo "[OK] Patch already applied: $PATCH"
+    else
+      echo "[FATAL] Patch failed and not reversible: $PATCH"
+      exit 1
+    fi
+  fi
+done
+
+### --- MARK PATCH STATE ---
+touch "$ASTERISK_SRC/.vicidial_patched"
+
+echo "================================================="
+echo "[SUCCESS] Vicidial patches applied"
+echo "Marker file: $ASTERISK_SRC/.vicidial_patched"
+echo "================================================="
+
+echo "[INFO] Next step: 04-build-asterisk.sh"
