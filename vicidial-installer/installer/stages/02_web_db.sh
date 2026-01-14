@@ -21,7 +21,10 @@ log_info "Stage 02: Web & Database started"
 # -----------------------------------------------------------------------------
 # Reboot validation (Stage 01 dependency)
 # -----------------------------------------------------------------------------
-require_rebooted_if_needed
+
+# commented it out
+#require_rebooted_if_needed
+#rm -f /var/lib/vicidial-install/reboot_required
 
 # -----------------------------------------------------------------------------
 # MariaDB Repository (Template-driven)
