@@ -44,7 +44,18 @@ dnf clean all
 # -----------------------------------------------------------------------------
 log_info "Stage 02 – Installing MariaDB server"
 
-dnf -y install mariadb-server mariadb-devel mariadb-backup
+log_info "Disabling distribution MariaDB module"
+
+dnf -y module disable mariadb || true
+
+log_info "Installing MariaDB ${MARIADB_VERSION} from upstream repo"
+dnf -y install \
+  MariaDB-server \
+  MariaDB-client \
+  MariaDB-backup \
+  MariaDB-devel
+
+
 
 systemctl enable mariadb --now
 
