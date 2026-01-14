@@ -66,19 +66,35 @@ init_installer() {
 # -----------------------------------------------------------------------------
 # Logging helpers
 # -----------------------------------------------------------------------------
+
 _log() {
   local level="$1"
   local msg="$2"
+  local color="$3"
+  local reset="\e[0m"
+  local bold="\e[1m"
   local ts
+  
   ts="$(date '+%Y-%m-%d %H:%M:%S')"
 
-  echo "[${ts}] [${level}] ${msg}"
+  # Format the level to be exactly 7 characters for perfect vertical alignment
+  local padded_level
+  padded_level=$(printf "%-7s" "$level")
+
+  # Print formatted output: [Timestamp] [LEVEL] Message
+  echo -e "${bold}[${ts}]${reset} ${color}[${padded_level}]${reset} ${msg}"
 }
 
-log_info()    { _log "INFO"    "$1"; }
-log_warn()    { _log "WARN"    "$1"; }
-log_error()   { _log "ERROR"   "$1"; }
-log_success() { _log "SUCCESS" "$1"; }
+# Define Colors
+C_INFO="\e[34m"    # Blue
+C_WARN="\e[33m"    # Yellow
+C_ERROR="\e[31m"   # Red
+C_SUCCESS="\e[32m" # Green
+
+log_info()    { _log "INFO"    "$1" "$C_INFO"; }
+log_warn()    { _log "WARN"    "$1" "$C_WARN"; }
+log_error()   { _log "ERROR"   "$1" "$C_ERROR"; }
+log_success() { _log "SUCCESS" "$1" "$C_SUCCESS"; }
 
 fatal() {
   log_error "$1"
