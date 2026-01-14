@@ -172,7 +172,7 @@ menuselect/menuselect \
 make -j"$(nproc)"
 
 make install
-make samples
+make samples NO_CHKCONFIG=1
 
 log_info "Skipping 'make config' (EL9 uses systemd; service installed later)"
 #make config
