@@ -158,8 +158,9 @@ chmod -R 755 "${ASTGUI_HOME}"
 # -----------------------------------------------------------------------------
 log_info "Importing Vicidial database schema"
 
-mysql -u"${VICIDIAL_DB_USER}" -p"${VICIDIAL_DB_PASS}" "${VICIDIAL_DB_NAME}" \
+mysql -u root "${VICIDIAL_DB_NAME}" \
   < "${VICIDIAL_SRC_DIR}/extras/MySQL_AST_CREATE_tables.sql"
+
 
 # -----------------------------------------------------------------------------
 # Generate astguiclient.conf
