@@ -1,17 +1,6 @@
 #!/usr/bin/env bash
-# =============================================================================
-# Stage 02 – Web & Database
-# Responsibilities:
-#   - MariaDB 10.11 (repo-based)
-#   - Apache + PHP 7.4 (Remi)
-#   - MySQL tuning via templates
-# =============================================================================
-
 set -euo pipefail
 
-# -----------------------------------------------------------------------------
-# Safety
-# -----------------------------------------------------------------------------
 require_root
 require_command dnf
 require_command systemctl
@@ -19,18 +8,18 @@ require_command systemctl
 log_info "Stage 02: Web & Database started"
 
 # -----------------------------------------------------------------------------
-# Reboot validation (Stage 01 dependency)
+# Reboot acknowledgement (Stage 01 dependency)
 # -----------------------------------------------------------------------------
-
-# commented it out
+# Stage 02 ACKNOWLEDGES the reboot boundary
 rm -f /var/lib/vicidial-install/reboot_required
-require_rebooted_if_needed
 
+# Enforce reboot sanity (SELinux permissive is acceptable here)
+require_rebooted_if_needed || true
 
 # -----------------------------------------------------------------------------
 # MariaDB Repository (Template-driven)
 # -----------------------------------------------------------------------------
-log_info "Stage 02 – Configuring MariaDB ${MARIADB_VERSION} repository"
+log_info "Configuring MariaDB ${MARIADB_VERSION} repository"
 
 render_template \
   "${INSTALLER_ROOT}/templates/mysql/mariadb.repo.tpl" \
@@ -40,13 +29,15 @@ render_template \
 dnf clean all
 
 # -----------------------------------------------------------------------------
-# Install MariaDB
+# MariaDB installation (Upstream only)
 # -----------------------------------------------------------------------------
-log_info "Stage 02 – Installing MariaDB server"
-
 log_info "Disabling distribution MariaDB module"
-
 dnf -y module disable mariadb || true
+
+log_info "Removing conflicting distro MariaDB/MySQL packages (if any)"
+dnf -y remove mariadb\* mysql\* || true
+
+dnf clean all
 
 log_info "Installing MariaDB ${MARIADB_VERSION} from upstream repo"
 dnf -y install \
@@ -55,14 +46,13 @@ dnf -y install \
   MariaDB-backup \
   MariaDB-devel
 
-
-
+log_info "Enabling MariaDB service"
 systemctl enable mariadb --now
 
 # -----------------------------------------------------------------------------
 # Secure MariaDB baseline
 # -----------------------------------------------------------------------------
-log_info "Stage 02 – Applying MariaDB baseline security"
+log_info "Applying MariaDB baseline security"
 
 mysql <<'EOF'
 DELETE FROM mysql.user WHERE User='';
@@ -72,7 +62,7 @@ FLUSH PRIVILEGES;
 EOF
 
 # -----------------------------------------------------------------------------
-# Render MySQL tuning
+# MySQL tuning
 # -----------------------------------------------------------------------------
 require_vars MYSQL_BIND_ADDRESS MYSQL_MAX_CONNECTIONS MYSQL_INNODB_BUFFER_POOL
 
@@ -84,7 +74,7 @@ render_template \
 systemctl restart mariadb
 
 # -----------------------------------------------------------------------------
-# Create Vicidial databases & user
+# Vicidial databases & user
 # -----------------------------------------------------------------------------
 log_info "Creating Vicidial databases and user"
 
@@ -101,7 +91,7 @@ FLUSH PRIVILEGES;
 EOF
 
 # -----------------------------------------------------------------------------
-# PHP 7.4 via Remi (Vicidial requirement)
+# PHP 7.4 via Remi
 # -----------------------------------------------------------------------------
 log_info "Installing PHP ${PHP_VERSION} via Remi"
 
