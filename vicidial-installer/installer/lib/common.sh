@@ -18,6 +18,10 @@ LOG_DIR="${INSTALLER_ROOT}/logs"
 MARKER_DIR="/var/lib/vicidial-install"
 CURRENT_STAGE=""
 
+
+OS_MAJOR=$(echo $VERSION_ID | cut -d. -f1)
+export OS_MAJOR
+
 # -----------------------------------------------------------------------------
 # Initialization
 # -----------------------------------------------------------------------------
