@@ -24,44 +24,18 @@ CURRENT_STAGE=""
 
 
 init_installer() {
-  # ... existing logic ...
+  # Ensure required globals are present
   [[ -n "$INSTALLER_ROOT" ]] || fatal "INSTALLER_ROOT not set"
   [[ -n "$LOG_DIR" ]] || fatal "LOG_DIR not set"
 
-  # Ensure marker and log paths exist before any stage runs
+  # Ensure marker and log paths exist
   mkdir -p "$LOG_DIR"
   mkdir -p "$MARKER_DIR"
-  
-  # Export them so subshells (stages) see them
+
+  # Export for subshells
   export INSTALLER_ROOT LOG_DIR MARKER_DIR
 }
 
-
-
-init_installer() {
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --root) INSTALLER_ROOT="$2"; shift 2 ;;
-      --logs) LOG_DIR="$2"; shift 2 ;;
-      *)
-        echo "ERROR: Unknown init_installer option: $1"
-        exit 1
-        ;;
-    esac
-  done
-
-  [[ -n "$INSTALLER_ROOT" ]] || fatal "INSTALLER_ROOT not set"
-  [[ -n "$LOG_DIR" ]] || fatal "LOG_DIR not set"
-
-
-  # Ensure marker and log paths exist before any stage runs
-  mkdir -p "$LOG_DIR"
-  mkdir -p "$MARKER_DIR"
-  
-  # Export them so subshells (stages) see them
-  export INSTALLER_ROOT LOG_DIR MARKER_DIR
-
-}
 
 # -----------------------------------------------------------------------------
 # Logging helpers
@@ -147,6 +121,7 @@ run_stage() {
   local name
   local logfile
 
+
   name="$(stage_name "$stage")"
   logfile="${LOG_DIR}/${name}.log"
 
@@ -168,22 +143,24 @@ run_stage() {
 
   mark_stage_complete "$stage"
   log_success "Stage completed: ${name}"
+  export CURRENT_STAGE="$name"
+  
 }
 
 # -----------------------------------------------------------------------------
 # Environment helpers (used by stages)
 # -----------------------------------------------------------------------------
+
 require_rebooted_if_needed() {
-  # Explicit reboot marker (authoritative)
-  
+  # 1. Explicit reboot marker (source of truth)
   if [[ -f /var/lib/vicidial-install/reboot_required ]]; then
-    fatal "System reboot required before continuing installation."
+    fatal "Reboot required. Please reboot the system and re-run install.sh"
   fi
 
-  # SELinux sanity (defensive)
-  if command -v sestatus >/dev/null 2>&1; then
-    if sestatus | grep -q "enabled"; then
-      fatal "SELinux still enabled. Reboot required before continuing."
+  # 2. Defensive SELinux verification (backup safety net)
+  if command -v getenforce >/dev/null 2>&1; then
+    if [[ "$(getenforce)" != "Disabled" ]]; then
+      fatal "SELinux is not disabled. Reboot required before continuing."
     fi
   fi
 }

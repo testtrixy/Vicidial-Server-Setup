@@ -23,13 +23,13 @@ log_info "Stage 02: Web & Database started"
 # -----------------------------------------------------------------------------
 
 # commented it out
-#require_rebooted_if_needed
-#rm -f /var/lib/vicidial-install/reboot_required
+require_rebooted_if_needed
+rm -f /var/lib/vicidial-install/reboot_required
 
 # -----------------------------------------------------------------------------
 # MariaDB Repository (Template-driven)
 # -----------------------------------------------------------------------------
-log_info "Configuring MariaDB ${MARIADB_VERSION} repository"
+log_info "Stage 02 – Configuring MariaDB ${MARIADB_VERSION} repository"
 
 render_template \
   "${INSTALLER_ROOT}/templates/mysql/mariadb.repo.tpl" \
@@ -41,7 +41,7 @@ dnf clean all
 # -----------------------------------------------------------------------------
 # Install MariaDB
 # -----------------------------------------------------------------------------
-log_info "Installing MariaDB server"
+log_info "Stage 02 – Installing MariaDB server"
 
 dnf -y install mariadb-server mariadb-devel mariadb-backup
 
@@ -50,7 +50,7 @@ systemctl enable mariadb --now
 # -----------------------------------------------------------------------------
 # Secure MariaDB baseline
 # -----------------------------------------------------------------------------
-log_info "Applying MariaDB baseline security"
+log_info "Stage 02 – Applying MariaDB baseline security"
 
 mysql <<'EOF'
 DELETE FROM mysql.user WHERE User='';

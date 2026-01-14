@@ -170,6 +170,13 @@ fi
 # -----------------------------------------------------------------------------
 # Completion notice
 # -----------------------------------------------------------------------------
-log_success "Stage 01 completed"
+log_success "--------------------------------------------------------"
+log_success "------------------Stage 01 completed--------------------"
+log_success "--------------------------------------------------------"
+
+
+log_warn "System reboot is REQUIRED before continuing installation"
+mkdir -p /var/lib/vicidial-install
 touch /var/lib/vicidial-install/reboot_required
 log_warn "REBOOT REQUIRED before proceeding to Stage 02 (SELinux & kernel changes)"
+#require_rebooted_if_needed
