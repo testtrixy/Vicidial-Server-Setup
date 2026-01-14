@@ -76,11 +76,20 @@ dnf -y install \
 # -----------------------------------------------------------------------------
 # Perl DBD::mysql compatibility (EL9 MariaDB fix)
 # -----------------------------------------------------------------------------
-log_info "Ensuring Perl DBD::mysql compatibility (MariaDB)"
 
-if [[ ! -f /usr/lib64/perl5/DBD/mysql.pm ]]; then
-  mkdir -p /usr/lib64/perl5/DBD
-  ln -s /usr/lib64/perl5/DBD/MariaDB.pm /usr/lib64/perl5/DBD/mysql.pm
+
+log_info "Ensuring Perl DBD::mysql compatibility (EL9 MariaDB fix)"
+
+# Determine vendor_perl directory dynamically
+PERL_VENDOR_DIR="$(perl -MConfig -e 'print $Config{vendorarch}')"
+
+# Ensure DBD directory exists
+mkdir -p "${PERL_VENDOR_DIR}/DBD"
+
+# Create compatibility alias if missing
+if [[ ! -f "${PERL_VENDOR_DIR}/DBD/mysql.pm" ]]; then
+  ln -s "${PERL_VENDOR_DIR}/DBD/MariaDB.pm" \
+        "${PERL_VENDOR_DIR}/DBD/mysql.pm"
 fi
 
 # -----------------------------------------------------------------------------
