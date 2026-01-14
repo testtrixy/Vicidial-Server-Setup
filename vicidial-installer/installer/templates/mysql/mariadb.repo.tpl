@@ -2,5 +2,5 @@
 name = MariaDB ${MARIADB_VERSION}
 baseurl = https://downloads.mariadb.com/MariaDB/mariadb-${MARIADB_VERSION}/yum/rhel/9/x86_64
 module_hotfixes = 1
-gpgkey = https://downloads.mariadb.com/MariaDB/mariadb-${MARIADB_VERSION}/yum/RPM-GPG-KEY-MariaDB
+gpgkey = https://downloads.mariadb.com/MariaDB/RPM-GPG-KEY-MariaDB
 gpgcheck = 1
