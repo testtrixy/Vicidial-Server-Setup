@@ -170,6 +170,25 @@ fi
 # -----------------------------------------------------------------------------
 # Completion notice
 # -----------------------------------------------------------------------------
+
+
+log_info "Ensuring asterisk system user and group exist"
+
+if ! getent group asterisk >/dev/null; then
+  groupadd --system asterisk
+fi
+
+if ! getent passwd asterisk >/dev/null; then
+  useradd \
+    --system \
+    --gid asterisk \
+    --home-dir /var/lib/asterisk \
+    --shell /sbin/nologin \
+    asterisk
+fi
+
+
+
 log_success "--------------------------------------------------------"
 log_success "------------------Stage 01 completed--------------------"
 log_success "--------------------------------------------------------"

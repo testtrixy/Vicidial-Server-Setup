@@ -61,7 +61,9 @@ autoreconf -i
 ./configure --libdir=/usr/lib64
 make
 make install
-make config
+
+log_info "DAHDI does not require a systemd service on EL9"
+#make config
 
 
 #systemctl enable dahdi || true
@@ -190,17 +192,29 @@ mkdir -p \
   /var/spool/asterisk \
   /var/run/asterisk
 
-chown -R asterisk:asterisk \
-  /var/log/asterisk \
-  /var/lib/asterisk \
-  /var/spool/asterisk \
-  /var/run/asterisk
+
+
+if getent passwd asterisk >/dev/null; then
+  chown -R asterisk:asterisk \
+    /var/log/asterisk \
+    /var/lib/asterisk \
+    /var/spool/asterisk \
+    /var/run/asterisk
+else
+  log_warn "asterisk user not found; skipping ownership (Stage 01 should create it)"
+fi
+
+
+
 
 # -----------------------------------------------------------------------------
 # 8. Enable & start Asterisk
 # -----------------------------------------------------------------------------
-systemctl enable asterisk
-systemctl restart asterisk
+#only build here and run 06 stage
+
+log_info "Asterisk binaries installed (service will be configured in Stage 06)"
+#systemctl enable asterisk
+#systemctl restart asterisk
 
 # -----------------------------------------------------------------------------
 # Completion
