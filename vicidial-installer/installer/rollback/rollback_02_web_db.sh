@@ -8,8 +8,21 @@ require_root
 log_warn "ROLLBACK: Stage 02 – Web & Database"
 
 log_info "Stopping services"
-systemctl stop mariadb httpd || true
-systemctl disable mariadb httpd || true
+
+
+for svc in mariadb httpd; do
+  if systemctl list-unit-files | grep -q "^${svc}\.service"; then
+    log_info "Stopping and disabling ${svc}"
+    systemctl stop "${svc}" || true
+    systemctl disable "${svc}" || true
+  else
+    log_info "${svc} service not present – skipping"
+  fi
+done
+
+
+#systemctl stop mariadb httpd || true
+#systemctl disable mariadb httpd || true
 
 log_info "Removing MariaDB & Apache packages"
 dnf -y remove mariadb-server mariadb-backup mariadb-devel httpd php\* || true
