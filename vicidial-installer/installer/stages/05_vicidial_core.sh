@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Stage 05 – Vicidial Core
+# Stage 05 – Vicidial Core (ZIP-based, EL9 safe)
+#
 # Responsibilities:
-#   - Install Vicidial Perl runtime dependencies
+#   - Install Vicidial Perl runtime dependencies (MariaDB-safe)
 #   - Install CPAN modules via cpanm
-#   - Deploy Vicidial from official nightly ZIP
+#   - Deploy Vicidial from official nightly ZIP (flat layout)
+#   - Create Vicidial filesystem layout
+#   - Import Vicidial database schema
 #   - Generate astguiclient.conf (template-driven)
-#   - Import Vicidial schema
 #   - Run install.pl non-interactively
 #
-# ASSUMES:
-#   - Stages 01–04 completed
-#   - MariaDB running
-#   - Apache + PHP installed
+# NOTES:
+#   - Uses ZIP layout (NO astguiclient/ dir in source)
+#   - Compatible with MariaDB 10.11 (no MySQL RPMs)
 # =============================================================================
 
 set -euo pipefail
@@ -25,29 +26,38 @@ require_command dnf
 require_command perl
 require_command mysql
 require_command unzip
-
-
+require_command curl
 
 log_success "---------------- – -------------------------------"
-  log_info "Stage 05: Vicidial core installation started"
+log_info "Stage 05: Vicidial core installation started"
 log_success "---------------- – -------------------------------"
 
-
+# -----------------------------------------------------------------------------
+# Required variables
+# -----------------------------------------------------------------------------
+require_vars \
+  VICIDIAL_DB_USER \
+  VICIDIAL_DB_PASS \
+  VICIDIAL_DB_NAME \
+  INSTALLER_ROOT
 
 # -----------------------------------------------------------------------------
-# Required secrets & paths
+# Paths
 # -----------------------------------------------------------------------------
-require_vars VICIDIAL_DB_USER VICIDIAL_DB_PASS VICIDIAL_DB_NAME
+VICIDIAL_BASE="${INSTALLER_ROOT}/tools/vicidial"
+VICIDIAL_WEB_ROOT="/var/www/html/vicidial"
+ASTGUI_HOME="/usr/share/astguiclient"
+ASTGUI_LOGS="/var/log/astguiclient"
+AST_AGI="/var/lib/asterisk/agi-bin"
 
-VICIDIAL_SRC_DIR="/usr/share/astguiclient"
-VICIDIAL_TMP_DIR="${INSTALLER_ROOT}/tools/vicidial"
 VICIDIAL_ZIP_URL="https://www.vicidial.org/svn_trunk_nightly/vicidial-trunk-2026-01-13.zip"
-VICIDIAL_ZIP_FILE="${VICIDIAL_TMP_DIR}/vicidial-trunk.zip"
+
+mkdir -p "${VICIDIAL_BASE}"
 
 # -----------------------------------------------------------------------------
-# Perl system dependencies (RPM)
+# Perl system dependencies (MariaDB-safe)
 # -----------------------------------------------------------------------------
-log_info "Installing Perl system dependencies"
+log_info "Installing Perl system dependencies (MariaDB-safe)"
 
 dnf -y install \
   perl-DBI \
@@ -60,11 +70,9 @@ dnf -y install \
   perl-Sys-Syslog \
   perl-libwww-perl \
   perl-JSON
-    #perl-DBD-MySQL \ check it ??
-
 
 # -----------------------------------------------------------------------------
-# cpanminus (cpanm)
+# cpanminus
 # -----------------------------------------------------------------------------
 log_info "Ensuring cpanminus is installed"
 
@@ -96,39 +104,57 @@ for module in "${CPAN_MODULES[@]}"; do
 done
 
 # -----------------------------------------------------------------------------
-# Download & extract Vicidial (official nightly ZIP)
+# Download & extract Vicidial nightly ZIP
 # -----------------------------------------------------------------------------
 log_info "Deploying Vicidial from official nightly ZIP"
 
-mkdir -p "${VICIDIAL_TMP_DIR}"
-cd "${VICIDIAL_TMP_DIR}"
+cd "${VICIDIAL_BASE}"
+rm -rf 20* vicidial-trunk*.zip
 
-if [[ ! -f "${VICIDIAL_ZIP_FILE}" ]]; then
-  curl -fLo "${VICIDIAL_ZIP_FILE}" "${VICIDIAL_ZIP_URL}"
-fi
+curl -fLO "${VICIDIAL_ZIP_URL}"
 
-rm -rf vicidial-trunk
-unzip -q "${VICIDIAL_ZIP_FILE}"
+ZIP_FILE="$(ls vicidial-trunk-*.zip | head -n1)"
+unzip -q "${ZIP_FILE}"
 
-# The ZIP extracts into vicidial-trunk/
-if [[ ! -d "vicidial-trunk" ]]; then
-  fatal "Vicidial ZIP extraction failed"
-fi
+VICIDIAL_SRC_DIR="$(find . -maxdepth 1 -type d -name '20*' | sort | tail -n1)"
 
-rm -rf "${VICIDIAL_SRC_DIR}"
-mv vicidial-trunk "${VICIDIAL_SRC_DIR}"
+[[ -d "${VICIDIAL_SRC_DIR}" ]] || fatal "Vicidial source directory not found after unzip"
+
+log_info "Using Vicidial source directory: ${VICIDIAL_SRC_DIR}"
 
 # -----------------------------------------------------------------------------
-# Permissions (critical for Vicidial)
+# Create Vicidial filesystem layout
 # -----------------------------------------------------------------------------
-log_info "Setting Vicidial filesystem permissions"
+log_info "Creating Vicidial filesystem layout"
 
-mkdir -p /var/log/astguiclient
-chown -R apache:apache "${VICIDIAL_SRC_DIR}" /var/log/astguiclient
-chmod -R 755 "${VICIDIAL_SRC_DIR}"
+mkdir -p \
+  "${ASTGUI_HOME}" \
+  "${ASTGUI_LOGS}" \
+  "${AST_AGI}"
 
 # -----------------------------------------------------------------------------
-# Database schema import (Vicidial-native)
+# Copy Vicidial components (ZIP layout aware)
+# -----------------------------------------------------------------------------
+log_info "Installing Vicidial components"
+
+cp -r "${VICIDIAL_SRC_DIR}/bin/"*        "${ASTGUI_HOME}/"
+cp -r "${VICIDIAL_SRC_DIR}/agi/"*        "${AST_AGI}/"
+cp -r "${VICIDIAL_SRC_DIR}/sounds/"*     /var/lib/asterisk/sounds/ || true
+
+# -----------------------------------------------------------------------------
+# Permissions
+# -----------------------------------------------------------------------------
+log_info "Setting Vicidial permissions"
+
+chown -R asterisk:asterisk \
+  "${ASTGUI_HOME}" \
+  "${ASTGUI_LOGS}" \
+  "${AST_AGI}"
+
+chmod -R 755 "${ASTGUI_HOME}"
+
+# -----------------------------------------------------------------------------
+# Database schema import
 # -----------------------------------------------------------------------------
 log_info "Importing Vicidial database schema"
 
@@ -136,7 +162,7 @@ mysql -u"${VICIDIAL_DB_USER}" -p"${VICIDIAL_DB_PASS}" "${VICIDIAL_DB_NAME}" \
   < "${VICIDIAL_SRC_DIR}/extras/MySQL_AST_CREATE_tables.sql"
 
 # -----------------------------------------------------------------------------
-# Generate astguiclient.conf (template-driven)
+# Generate astguiclient.conf
 # -----------------------------------------------------------------------------
 log_info "Generating /etc/astguiclient.conf"
 
@@ -150,19 +176,23 @@ render_template \
   0644 root:root
 
 # -----------------------------------------------------------------------------
-# Run Vicidial install.pl (non-interactive)
+# Run install.pl (non-interactive)
 # -----------------------------------------------------------------------------
 log_info "Running Vicidial install.pl (non-interactive)"
 
 cd "${VICIDIAL_SRC_DIR}"
-perl install.pl --no-prompt --copy_sample_conf
+perl ./install.pl --no-prompt --copy_sample_conf
 
 # -----------------------------------------------------------------------------
-# Web symlink
+# Web interface
 # -----------------------------------------------------------------------------
-log_info "Linking Vicidial web interface"
+log_info "Installing Vicidial web interface"
 
-ln -sf "${VICIDIAL_SRC_DIR}/www" /var/www/html/vicidial
+rm -rf "${VICIDIAL_WEB_ROOT}"
+cp -r "${VICIDIAL_SRC_DIR}/www" "${VICIDIAL_WEB_ROOT}"
+
+chown -R apache:apache "${VICIDIAL_WEB_ROOT}"
+chmod -R 755 "${VICIDIAL_WEB_ROOT}"
 
 # -----------------------------------------------------------------------------
 # Completion
