@@ -98,15 +98,15 @@ else
 fi
 
 # Vicidial schema sanity (WARN-only)
-if mysql -N -e "SHOW TABLES LIKE 'vicidial_users';" vicidial 2>/dev/null | grep -q vicidial_users; then
-  USER_COUNT=$(mysql -N -e "SELECT COUNT(*) FROM vicidial_users;" vicidial 2>/dev/null || echo 0)
+if mysql -N -e "SHOW TABLES LIKE 'vicidial_users';" asterisk 2>/dev/null | grep -q vicidial_users; then
+  USER_COUNT=$(mysql -N -e "SELECT COUNT(*) FROM vicidial_users;" asterisk 2>/dev/null || echo 0)
   if [[ "${USER_COUNT}" -gt 0 ]]; then
     pass "Vicidial users table populated (${USER_COUNT} users)"
   else
     warn "Vicidial users table exists but is empty"
   fi
 else
-  fail "Vicidial schema missing (vicidial_users table not found)"
+  fail "asterisk schema missing (vicidial_users table not found)"
 fi
 
 # -----------------------------------------------------------------------------
