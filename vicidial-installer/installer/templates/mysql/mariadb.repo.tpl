@@ -1,6 +1,7 @@
 [mariadb]
+
 name = MariaDB
-baseurl = https://mirror.23m.com/mariadb/yum/${MARIADB_VERSION}/rhel/$releasever/$basearch
+baseurl = https://rpm.mariadb.org/10.11/rhel/$releasever/$basearch
 module_hotfixes = 1
-gpgkey = https://mirror.23m.com/mariadb/yum/RPM-GPG-KEY-MariaDB
+gpgkey = https://rpm.mariadb.org/RPM-GPG-KEY-MariaDB
 gpgcheck = 1
