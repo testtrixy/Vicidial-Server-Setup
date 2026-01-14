@@ -59,6 +59,11 @@ source "${CONFIG_DIR}/secrets.env"
 source "${CONFIG_DIR}/features.env"
 set +a
 
+source config/paths.env
+echo "$MYSQL_BIND_ADDRESS"
+echo "$MYSQL_MAX_CONNECTIONS"
+echo "$MYSQL_INNODB_BUFFER_POOL"
+
 # -----------------------------------------------------------------------------
 # Global configuration
 # -----------------------------------------------------------------------------
