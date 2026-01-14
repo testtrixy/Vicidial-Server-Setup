@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# =============================================================================
+# VICIDIAL 2026 – Common Installer Library
+# Used by: install.sh and all stage scripts
+# Scope: Logging, markers, safety, execution control
+# =============================================================================
+
+set -o pipefail
+
+# -----------------------------------------------------------------------------
+# Internal globals (set via init_installer)
+# -----------------------------------------------------------------------------
+INSTALLER_ROOT=""
+LOG_DIR=""
+MARKER_DIR="/var/lib/vicidial-install"
+CURRENT_STAGE=""
+
+# -----------------------------------------------------------------------------
+# Initialization
+# -----------------------------------------------------------------------------
+init_installer() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --root) INSTALLER_ROOT="$2"; shift 2 ;;
+      --logs) LOG_DIR="$2"; shift 2 ;;
+      *)
+        echo "ERROR: Unknown init_installer option: $1"
+        exit 1
+        ;;
+    esac
+  done
+
+  [[ -n "$INSTALLER_ROOT" ]] || fatal "INSTALLER_ROOT not set"
+  [[ -n "$LOG_DIR" ]] || fatal "LOG_DIR not set"
+
+  mkdir -p "$LOG_DIR" "$MARKER_DIR"
+}
+
+# -----------------------------------------------------------------------------
+# Logging helpers
+# -----------------------------------------------------------------------------
+_log() {
+  local level="$1"
+  local msg="$2"
+  local ts
+  ts="$(date '+%Y-%m-%d %H:%M:%S')"
+
+  echo "[${ts}] [${level}] ${msg}"
+}
+
+log_info()    { _log "INFO"    "$1"; }
+log_warn()    { _log "WARN"    "$1"; }
+log_error()   { _log "ERROR"   "$1"; }
+log_success() { _log "SUCCESS" "$1"; }
+
+fatal() {
+  log_error "$1"
+  exit 1
+}
+
+# -----------------------------------------------------------------------------
+# Safety checks
+# -----------------------------------------------------------------------------
+require_root() {
+  [[ $EUID -eq 0 ]] || fatal "Must be run as root"
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fatal "Required command missing: $1"
+}
+
+require_file() {
+  [[ -f "$1" ]] || fatal "Required file missing: $1"
+}
+
+require_dir() {
+  [[ -d "$1" ]] || fatal "Required directory missing: $1"
+}
+
+# -----------------------------------------------------------------------------
+# Marker handling (idempotency & resume)
+# -----------------------------------------------------------------------------
+stage_name() {
+  basename "$1" .sh
+}
+
+marker_path() {
+  echo "${MARKER_DIR}/$(stage_name "$1").done"
+}
+
+is_stage_complete() {
+  [[ -f "$(marker_path "$1")" ]]
+}
+
+mark_stage_complete() {
+  touch "$(marker_path "$1")"
+}
+
+# -----------------------------------------------------------------------------
+# Stage execution
+# -----------------------------------------------------------------------------
+run_stage() {
+  local stage="$1"
+  local name
+  local logfile
+
+  name="$(stage_name "$stage")"
+  logfile="${LOG_DIR}/${name}.log"
+
+  require_file "$stage"
+
+  if is_stage_complete "$stage"; then
+    log_info "Skipping ${name} (already completed)"
+    return 0
+  fi
+
+  log_info "Starting stage: ${name}"
+  log_info "Logging to: ${logfile}"
+
+  (
+    set -euo pipefail
+    CURRENT_STAGE="$name"
+    source "$stage"
+  ) > >(tee -a "$logfile") 2>&1
+
+  mark_stage_complete "$stage"
+  log_success "Stage completed: ${name}"
+}
+
+# -----------------------------------------------------------------------------
+# Environment helpers (used by stages)
+# -----------------------------------------------------------------------------
+require_rebooted_if_needed() {
+  if command -v sestatus >/dev/null 2>&1; then
+    if sestatus | grep -q "enabled"; then
+      fatal "SELinux still enabled. Reboot required before continuing."
+    fi
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# End of common.sh
+# -----------------------------------------------------------------------------
