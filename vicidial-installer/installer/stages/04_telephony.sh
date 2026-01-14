@@ -122,29 +122,31 @@ cd "asterisk-${ASTERISK_VERSION}-vici"
 # -----------------------------------------------------------------------------
 # 5. Apply Vicidial patches (controlled, explicit)
 # -----------------------------------------------------------------------------
-log_info "Applying Vicidial Asterisk patches"
 
-PATCH_BASE_URL="http://download.vicidial.com/asterisk-patches/Asterisk-18"
+# 
+# log_info "Applying Vicidial Asterisk patches"
 
-PATCHES=(
-  "amd_stats-18.patch"
-  "iax_peer_status-18.patch"
-  "sip_peer_status-18.patch"
-  "timeout_reset_dial_app-18.patch"
-  "timeout_reset_dial_core-18.patch"
-)
+# PATCH_BASE_URL="http://download.vicidial.com/asterisk-patches/Asterisk-18"
 
-mkdir -p patches
-cd patches
+#PATCHES=(
+ # "amd_stats-18.patch"
+  #"iax_peer_status-18.patch"
+  #"sip_peer_status-18.patch"
+  #"timeout_reset_dial_app-18.patch"
+  #"timeout_reset_dial_core-18.patch"
+#)
 
-for p in "${PATCHES[@]}"; do
-  curl -fLO "${PATCH_BASE_URL}/${p}"
-done
+#mkdir -p patches
+#cd patches
 
-cd ..
-for p in patches/*.patch; do
-  patch -p1 < "$p"
-done
+#for p in "${PATCHES[@]}"; do
+ # curl -fLO "${PATCH_BASE_URL}/${p}"
+#done
+
+#cd ..
+#for p in patches/*.patch; do
+ # patch -p1 < "$p"
+#done
 
 # -----------------------------------------------------------------------------
 # 6. Configure, build & install Asterisk
