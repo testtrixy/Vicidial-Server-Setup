@@ -63,7 +63,9 @@ make
 make install
 make config
 
-systemctl enable dahdi || true
+
+#systemctl enable dahdi || true
+log_info "DAHDI does not require a systemd service on EL9"
 
 # -----------------------------------------------------------------------------
 # 2. LibPRI (Vicidial-pinned)
@@ -77,8 +79,15 @@ curl -fLO "https://download.vicidial.com/required-apps/libpri-${LIBPRI_VERSION}.
 tar -zxf "libpri-${LIBPRI_VERSION}.tar.gz"
 cd "libpri-${LIBPRI_VERSION}"
 
-make
-make install
+
+
+log_info "Building LibPRI with relaxed compiler warnings (EL9 compatibility)"
+make clean || true
+make CFLAGS="-Wno-error" && make install
+
+
+
+
 
 # -----------------------------------------------------------------------------
 # 3. LibSRTP (OpenSSL compatible)
