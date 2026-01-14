@@ -90,6 +90,28 @@ GRANT ALL PRIVILEGES ON vicidial.* TO '${VICIDIAL_DB_USER}'@'localhost';
 FLUSH PRIVILEGES;
 EOF
 
+
+log_info "Ensuring Vicidial database users exist (localhost + wildcard)"
+
+mysql -u root <<EOF
+-- Localhost access (used by PHP & AGI)
+CREATE USER IF NOT EXISTS '${VICIDIAL_DB_USER}'@'localhost'
+  IDENTIFIED BY '${VICIDIAL_DB_PASS}';
+
+GRANT ALL PRIVILEGES ON ${VICIDIAL_DB_NAME}.* 
+  TO '${VICIDIAL_DB_USER}'@'localhost';
+
+-- Wildcard access (required by Vicidial SQL + clustering)
+CREATE USER IF NOT EXISTS '${VICIDIAL_DB_USER}'@'%'
+  IDENTIFIED BY '${VICIDIAL_DB_PASS}';
+
+GRANT ALL PRIVILEGES ON ${VICIDIAL_DB_NAME}.* 
+  TO '${VICIDIAL_DB_USER}'@'%';
+
+FLUSH PRIVILEGES;
+EOF
+
+
 # -----------------------------------------------------------------------------
 # PHP 7.4 via Remi
 # -----------------------------------------------------------------------------
