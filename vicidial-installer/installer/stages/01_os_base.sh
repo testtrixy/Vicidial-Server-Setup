@@ -51,7 +51,15 @@ sed -i 's/^SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
 # -----------------------------------------------------------------------------
 log_info "Enabling firewalld baseline"
 
-systemctl enable firewalld --now
+#systemctl enable firewalld --now
+
+if systemctl list-unit-files | grep -q '^firewalld.service'; then
+  log_info "Enabling firewalld"
+  systemctl enable --now firewalld
+else
+  log_warn "firewalld not installed — skipping (expected on minimal images)"
+fi
+
 
 # -----------------------------------------------------------------------------
 # System update
