@@ -41,14 +41,45 @@ require_vars \
   VICIDIAL_DB_NAME \
   INSTALLER_ROOT
 
+
 # -----------------------------------------------------------------------------
 # Paths
 # -----------------------------------------------------------------------------
-VICIDIAL_BASE="${INSTALLER_ROOT}/tools/vicidial"
-VICIDIAL_WEB_ROOT="/var/www/html/vicidial"
+
+# -----------------------------------------------------------------------------
+# Vicidial runtime variables (derived, single source of truth)
+# -----------------------------------------------------------------------------
+log_info "Defining Vicidial runtime variables"
+
+# Installer / filesystem paths (authoritative)
 ASTGUI_HOME="/usr/share/astguiclient"
 ASTGUI_LOGS="/var/log/astguiclient"
 AST_AGI="/var/lib/asterisk/agi-bin"
+VICIDIAL_WEB_ROOT="/var/www/html/vicidial"
+AST_SOUNDS="/var/lib/asterisk/sounds"
+AST_MONITOR="/var/spool/asterisk/monitor"
+
+# Vicidial runtime variables (used by astguiclient.conf)
+PATHhome="${ASTGUI_HOME}"
+PATHlogs="${ASTGUI_LOGS}"
+PATHagi="${AST_AGI}"
+PATHweb="${VICIDIAL_WEB_ROOT}"
+PATHsounds="${AST_SOUNDS}"
+PATHmonitor="${AST_MONITOR}"
+
+VARserver_ip="$(hostname -I | awk '{print $1}')"
+VARDB_server="localhost"
+VARDB_port="3306"
+
+# Export for render_template()
+export \
+  PATHhome PATHlogs PATHagi PATHweb PATHsounds PATHmonitor \
+  VARserver_ip VARDB_server VARDB_port
+
+
+
+#------------------------------------------------------------
+
 
 VICIDIAL_ZIP_URL="https://www.vicidial.org/svn_trunk_nightly/vicidial-trunk-2026-01-13.zip"
 
