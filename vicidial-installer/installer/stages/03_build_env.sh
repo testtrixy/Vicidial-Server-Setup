@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Stage 03 – Build Environment
+# Stage 03 – Build Environment (EL9)
 # Responsibilities:
-#   - Prepare system for source compilation
-#   - Install kernel headers & build dependencies
-#   - Install Asterisk / DAHDI prerequisite libraries
+#   - Verify running kernel matches installed headers
+#   - Install compilation toolchain
+#   - Install libraries required to BUILD Asterisk / DAHDI from source
 #
 # NO compiling
 # NO services
@@ -19,10 +19,16 @@ require_root
 require_command dnf
 require_command uname
 
-log_info "Stage 03: Build environment preparation started"
+
+log_success "---------------- – -------------------------------"
+  log_info "Stage 03: Build environment preparation started"
+log_success "---------------- – -------------------------------"
+
+
+
 
 # -----------------------------------------------------------------------------
-# Validate OS kernel headers availability
+# Validate kernel headers (MANDATORY for DAHDI)
 # -----------------------------------------------------------------------------
 KERNEL_VERSION="$(uname -r)"
 INSTALLED_KERNEL="$(rpm -q kernel | sort -V | tail -1 | sed 's/kernel-//')"
@@ -31,76 +37,55 @@ if [[ "${KERNEL_VERSION}" != "${INSTALLED_KERNEL}" ]]; then
   fatal "Running kernel (${KERNEL_VERSION}) does not match latest installed (${INSTALLED_KERNEL}). Reboot required."
 fi
 
-
 log_info "Detected running kernel: ${KERNEL_VERSION}"
 
 dnf -y install \
   kernel-devel-"${KERNEL_VERSION}" \
-  kernel-headers-"${KERNEL_VERSION}" || \
-  fatal "Kernel headers not found for ${KERNEL_VERSION}. Reboot into latest kernel."
+  kernel-headers-"${KERNEL_VERSION}" \
+  || fatal "Kernel headers not found for ${KERNEL_VERSION}"
 
 # -----------------------------------------------------------------------------
-# Core build tools (defensive, even if installed earlier)
+# Core compilation toolchain
 # -----------------------------------------------------------------------------
 log_info "Installing core compilation toolchain"
 
 dnf -y groupinstall "Development Tools"
 
 dnf -y install \
-  gcc gcc-c++ make autoconf automake libtool \
+  gcc gcc-c++ make \
+  autoconf automake libtool \
   patch bison flex \
-  pkgconfig \
-  git wget curl \
+  pkgconf-pkg-config \
+  git wget curl
+
+# -----------------------------------------------------------------------------
+# Asterisk / DAHDI build dependencies (EL9-correct)
+# -----------------------------------------------------------------------------
+log_info "Installing Asterisk / DAHDI build dependencies"
+
+dnf -y install \
   ncurses-devel \
+  libedit-devel \
+  libuuid-devel \
   libxml2-devel \
   sqlite-devel \
-  openssl-devel \
-  libuuid-devel \
   jansson-devel \
-  libedit-devel \
-  elfutils-libelf-devel
-
-# -----------------------------------------------------------------------------
-# DAHDI / Telephony-specific dependencies
-# -----------------------------------------------------------------------------
-log_info "Installing DAHDI / telephony build dependencies"
-
-dnf -y install \
-  dahdi-linux-devel \
+  openssl-devel \
+  elfutils-libelf-devel \
   libpcap-devel \
-  newt-devel \
-  libtermcap-devel \
-  pciutils-devel
-
-# -----------------------------------------------------------------------------
-# Audio & codec build prerequisites
-# -----------------------------------------------------------------------------
-log_info "Installing audio & codec dependencies"
-
-dnf -y install \
-  speex-devel \
-  speexdsp-devel \
-  libogg-devel \
-  libvorbis-devel \
-  opus-devel \
-  flac-devel
-
-# -----------------------------------------------------------------------------
-# SRTP & security
-# -----------------------------------------------------------------------------
-log_info "Installing SRTP & security libraries"
-
-dnf -y install \
-  libsrtp-devel \
+  pciutils-devel \
   zlib-devel
 
 # -----------------------------------------------------------------------------
-# Validation summary
+# Validation
 # -----------------------------------------------------------------------------
-log_info "Validating build environment"
+log_info "Validating build toolchain"
 
-for cmd in gcc make ld pkg-config; do
+for cmd in gcc make ld pkg-config git; do
   require_command "$cmd"
 done
 
-log_success "Stage 03 completed – build environment ready"
+
+log_success "---------------- – -------------------------------"
+  log_success "Stage 03 completed – build environment ready"
+log_success "---------------- – -------------------------------"

@@ -67,6 +67,7 @@ C_WARN="\e[33m"    # Yellow
 C_ERROR="\e[31m"   # Red
 C_SUCCESS="\e[32m" # Green
 
+
 log_info()    { _log "INFO"    "$1" "$C_INFO"; }
 log_warn()    { _log "WARN"    "$1" "$C_WARN"; }
 log_error()   { _log "ERROR"   "$1" "$C_ERROR"; }
@@ -149,6 +150,16 @@ run_stage() {
   
 }
 
+
+
+require_vars() {
+  for var in "$@"; do
+    if [[ -z "${!var:-}" ]]; then
+      log_error "Required variable not set: $var"
+      return 1
+    fi
+  done
+}
 # -----------------------------------------------------------------------------
 # Environment helpers (used by stages)
 # -----------------------------------------------------------------------------
