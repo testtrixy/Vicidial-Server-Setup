@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/rollback_header.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
 require_root
