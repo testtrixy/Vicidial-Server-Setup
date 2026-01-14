@@ -106,6 +106,13 @@ dnf -y install \
 # -----------------------------------------------------------------------------
 # Apache
 # -----------------------------------------------------------------------------
+
+# # /etc/dnf/dnf.conf
+#block MySQL packages globally
+dnf -y remove mysql-libs mysql-common 2>/dev/null || true
+exclude=mysql* community-mysql*
+
+
 log_info "Installing Apache"
 
 dnf -y install httpd mod_ssl
