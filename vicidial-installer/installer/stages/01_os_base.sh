@@ -163,4 +163,5 @@ fi
 # Completion notice
 # -----------------------------------------------------------------------------
 log_success "Stage 01 completed"
+touch /var/lib/vicidial-install/reboot_required
 log_warn "REBOOT REQUIRED before proceeding to Stage 02 (SELinux & kernel changes)"
