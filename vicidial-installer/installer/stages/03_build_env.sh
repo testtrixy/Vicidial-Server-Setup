@@ -25,6 +25,12 @@ log_info "Stage 03: Build environment preparation started"
 # Validate OS kernel headers availability
 # -----------------------------------------------------------------------------
 KERNEL_VERSION="$(uname -r)"
+INSTALLED_KERNEL="$(rpm -q kernel | sort -V | tail -1 | sed 's/kernel-//')"
+
+if [[ "${KERNEL_VERSION}" != "${INSTALLED_KERNEL}" ]]; then
+  fatal "Running kernel (${KERNEL_VERSION}) does not match latest installed (${INSTALLED_KERNEL}). Reboot required."
+fi
+
 
 log_info "Detected running kernel: ${KERNEL_VERSION}"
 
