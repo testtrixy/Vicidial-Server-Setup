@@ -170,9 +170,12 @@ menuselect/menuselect \
   menuselect.makeopts
 
 make -j"$(nproc)"
+
 make install
 make samples
-make config
+
+log_info "Skipping 'make config' (EL9 uses systemd; service installed later)"
+#make config
 
 ldconfig
 
