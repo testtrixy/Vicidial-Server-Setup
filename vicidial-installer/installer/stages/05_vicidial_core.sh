@@ -157,9 +157,16 @@ chmod -R 755 "${ASTGUI_HOME}"
 # Database schema import
 # -----------------------------------------------------------------------------
 log_info "Importing Vicidial database schema"
+log_info "Checking if Vicidial schema already exists"
 
-mysql -u root "${VICIDIAL_DB_NAME}" \
-  < "${VICIDIAL_SRC_DIR}/extras/MySQL_AST_CREATE_tables.sql"
+
+if mysql -u root -e "USE ${VICIDIAL_DB_NAME}; SHOW TABLES LIKE 'phones';" | grep -q phones; then
+  log_warn "Vicidial schema already exists, skipping SQL import"
+else
+  log_info "Importing Vicidial database schema"
+  mysql -u root "${VICIDIAL_DB_NAME}" < "${VICIDIAL_SRC_DIR}/extras/MySQL_AST_CREATE_tables.sql"
+fi
+
 
 
 # -----------------------------------------------------------------------------
