@@ -19,12 +19,12 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 
-
 # -----------------------------------------------------------------------------
 # 1. Resolve installer root (absolute, symlink-safe)
 # -----------------------------------------------------------------------------
 
 INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export INSTALLER_ROOT
 
 # -----------------------------------------------------------------------------
 # 2. Core paths (DO NOT hardcode elsewhere)
@@ -52,17 +52,16 @@ done
 # -----------------------------------------------------------------------------
 # 4. Load configuration (order matters)
 # -----------------------------------------------------------------------------
+set -a 
 source "${CONFIG_DIR}/versions.env"
 source "${CONFIG_DIR}/paths.env"
 source "${CONFIG_DIR}/secrets.env"
+source "${CONFIG_DIR}/features.env"
+set +a
 
 # -----------------------------------------------------------------------------
 # Global configuration
 # -----------------------------------------------------------------------------
-source "${CONFIG_DIR}/versions.env"
-source "${CONFIG_DIR}/paths.env"
-source "${CONFIG_DIR}/secrets.env"
-
 # Optional feature flags (safe defaults)
 if [[ -f "${CONFIG_DIR}/features.env" ]]; then
   source "${CONFIG_DIR}/features.env"
