@@ -23,7 +23,14 @@ require_command crontab
 require_command asterisk
 require_command perl
 
-log_info "Stage 06: Vicidial automation & hardening started"
+
+
+log_success "---------------- – -------------------------------"
+ log_info "Stage 06: Vicidial automation & hardening started"
+log_success "---------------- – -------------------------------"
+
+
+
 
 VICIDIAL_HOME="/usr/share/astguiclient"
 CRON_USER="root"
@@ -51,3 +58,9 @@ cat <<'EOF' > "${CRON_FILE}"
 * * * * * /usr/bin/perl /usr/share/astguiclient/AST_update_phones.pl
 * * * * * /usr/bin/perl /usr/share/astguiclient/AST_update_user_groups.pl
 * * * * * /usr/bin/perl /usr/share/astguiclient/AST*
+
+# --- Log & DB archive (CRITICAL) ---
+
+30 2 * * * /usr/bin/perl /usr/share/astguiclient/ADMIN_archive_log_tables.pl
+15 3 * * * /usr/bin/perl /usr/share/astguiclient/AST_cleanup_log_files.pl
+

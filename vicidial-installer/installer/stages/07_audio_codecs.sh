@@ -21,7 +21,15 @@ require_root
 require_command dnf
 require_command asterisk
 
-log_info "Stage 07: Audio & codec setup started"
+
+
+
+log_success "---------------- – -------------------------------"
+  log_info "Stage 07: Audio & codec setup started"
+log_success "---------------- – -------------------------------"
+
+
+
 
 ASTERISK_SOUNDS_DIR="/var/lib/asterisk/sounds"
 MOH_DIR="/var/lib/asterisk/moh"

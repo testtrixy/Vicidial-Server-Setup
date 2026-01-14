@@ -26,7 +26,13 @@ require_command perl
 require_command mysql
 require_command unzip
 
-log_info "Stage 05: Vicidial core installation started"
+
+
+log_success "---------------- – -------------------------------"
+  log_info "Stage 05: Vicidial core installation started"
+log_success "---------------- – -------------------------------"
+
+
 
 # -----------------------------------------------------------------------------
 # Required secrets & paths

@@ -21,7 +21,14 @@ require_command make
 require_command gcc
 require_command patch
 
-log_info "Stage 04: Telephony Core (Vicidial-patched Asterisk 18) started"
+
+
+log_success "---------------- – -------------------------------"
+  log_info "Stage 04: Telephony Core (Vicidial-patched Asterisk 18) started"
+log_success "---------------- – -------------------------------"
+
+
+
 
 # -----------------------------------------------------------------------------
 # Versions (pin explicitly – do NOT float silently)

@@ -22,7 +22,16 @@ set -euo pipefail
 require_root
 require_command systemctl
 
-log_info "Stage 08: Modern extras (optional) started"
+
+
+log_success "---------------- – -------------------------------"
+ log_info "Stage 08: Modern extras (optional) started"
+log_success "---------------- – -------------------------------"
+
+
+
+
+
 
 # -----------------------------------------------------------------------------
 # 1. HTTPS for Vicidial UI (OPTIONAL)
