@@ -10,14 +10,34 @@ set -o pipefail
 # -----------------------------------------------------------------------------
 # Internal globals (set via init_installer)
 # -----------------------------------------------------------------------------
-INSTALLER_ROOT=""
-LOG_DIR=""
+
+
+: "${INSTALLER_ROOT:?INSTALLER_ROOT must be set by install.sh}"
+
+LOG_DIR="${INSTALLER_ROOT}/logs"
 MARKER_DIR="/var/lib/vicidial-install"
 CURRENT_STAGE=""
 
 # -----------------------------------------------------------------------------
 # Initialization
 # -----------------------------------------------------------------------------
+
+
+init_installer() {
+  # ... existing logic ...
+  [[ -n "$INSTALLER_ROOT" ]] || fatal "INSTALLER_ROOT not set"
+  [[ -n "$LOG_DIR" ]] || fatal "LOG_DIR not set"
+
+  # Ensure marker and log paths exist before any stage runs
+  mkdir -p "$LOG_DIR"
+  mkdir -p "$MARKER_DIR"
+  
+  # Export them so subshells (stages) see them
+  export INSTALLER_ROOT LOG_DIR MARKER_DIR
+}
+
+
+
 init_installer() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -33,7 +53,14 @@ init_installer() {
   [[ -n "$INSTALLER_ROOT" ]] || fatal "INSTALLER_ROOT not set"
   [[ -n "$LOG_DIR" ]] || fatal "LOG_DIR not set"
 
-  mkdir -p "$LOG_DIR" "$MARKER_DIR"
+
+  # Ensure marker and log paths exist before any stage runs
+  mkdir -p "$LOG_DIR"
+  mkdir -p "$MARKER_DIR"
+  
+  # Export them so subshells (stages) see them
+  export INSTALLER_ROOT LOG_DIR MARKER_DIR
+
 }
 
 # -----------------------------------------------------------------------------
@@ -131,6 +158,13 @@ run_stage() {
 # Environment helpers (used by stages)
 # -----------------------------------------------------------------------------
 require_rebooted_if_needed() {
+  # Explicit reboot marker (authoritative)
+  
+  if [[ -f /var/lib/vicidial-install/reboot_required ]]; then
+    fatal "System reboot required before continuing installation."
+  fi
+
+  # SELinux sanity (defensive)
   if command -v sestatus >/dev/null 2>&1; then
     if sestatus | grep -q "enabled"; then
       fatal "SELinux still enabled. Reboot required before continuing."
