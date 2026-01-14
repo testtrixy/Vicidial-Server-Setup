@@ -13,3 +13,5 @@ VARDB_database => ${VICIDIAL_DB_NAME}
 VARDB_user => ${VICIDIAL_DB_USER}
 VARDB_pass => ${VICIDIAL_DB_PASS}
 VARDB_port => ${VARDB_port}
+
+
