@@ -51,7 +51,8 @@ log_info "Installing Perl system dependencies"
 
 dnf -y install \
   perl-DBI \
-  perl-DBD-MySQL \
+  #perl-DBD-MySQL \ check it ??
+  perl-DBD-MariaDB
   perl-Net-Telnet \
   perl-Time-HiRes \
   perl-Net-Server \
