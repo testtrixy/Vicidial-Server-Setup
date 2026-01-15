@@ -127,8 +127,8 @@ cp -r "${VICIDIAL_SRC_DIR}/sounds"  "${AST_SOUNDS}/"
 
 
 
-log_info "Installing Vicidial web interface"
-log_error "${VICIDIAL_SRC_DIR}/www"
+log_info "Installing Vicidial web interface with WWW"
+log_info "${VICIDIAL_SRC_DIR}/www"
 
 WEB_SRC="${VICIDIAL_SRC_DIR}/www"
 if [[ ! -d "${WEB_SRC}" ]]; then
