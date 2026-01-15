@@ -102,7 +102,14 @@ chmod -R 755 "${ASTERISK_SOUNDS_DIR}" "${MOH_DIR}"
 # -----------------------------------------------------------------------------
 log_info "Reloading Asterisk to recognize sounds"
 
-asterisk -rx "core reload"
+
+if systemctl is-active --quiet asterisk; then
+  log_info "Reloading Asterisk to recognize sounds"
+  asterisk -rx "reload"
+else
+  log_warn "Asterisk not running yet – reload skipped"
+fi
+
 
 # -----------------------------------------------------------------------------
 # Completion
