@@ -78,19 +78,27 @@ dnf -y install \
 # -----------------------------------------------------------------------------
 
 
-log_info "Ensuring Perl DBD::mysql compatibility (EL9 MariaDB fix)"
+log_info "Installing DBD::mysql (pinned EL9-compatible version)"
 
-# Determine vendor_perl directory dynamically
-PERL_VENDOR_DIR="$(perl -MConfig -e 'print $Config{vendorarch}')"
+export PERL_MM_USE_DEFAULT=1
+export PERL5_CPAN_IS_RUNNING=1
 
-# Ensure DBD directory exists
-mkdir -p "${PERL_VENDOR_DIR}/DBD"
+if ! perl -MDBD::mysql -e 1 >/dev/null 2>&1; then
+  dnf -y install \
+    perl-DBI \
+    perl-ExtUtils-MakeMaker \
+    gcc \
+    make \
+    mariadb-connector-c-devel
 
-# Create compatibility alias if missing
-if [[ ! -f "${PERL_VENDOR_DIR}/DBD/mysql.pm" ]]; then
-  ln -s "${PERL_VENDOR_DIR}/DBD/MariaDB.pm" \
-        "${PERL_VENDOR_DIR}/DBD/mysql.pm"
+  cpan -T DVEEDEN/DBD-mysql-4.050.tar.gz
 fi
+
+perl -MDBD::mysql -e 'print "DBD::mysql OK\n"' \
+  || fatal "DBD::mysql installation failed"
+
+
+
 
 
 
