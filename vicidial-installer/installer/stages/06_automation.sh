@@ -20,7 +20,6 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 require_root
 require_command crontab
-require_command asterisk
 require_command perl
 
 
@@ -76,7 +75,11 @@ systemctl start asterisk
 log_info "-----------------------------------------------------------------------"
 
 
+log_info "Verifying Asterisk is running"
 
+if ! asterisk -rx "core show uptime" >/dev/null 2>&1; then
+  fatal "Asterisk failed to start – cannot continue with automation"
+fi
 
 
 
