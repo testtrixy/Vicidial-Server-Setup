@@ -1,114 +1,81 @@
 #!/usr/bin/env bash
-# =============================================================================
-# VICIDIAL 2026 – MASTER INSTALLER
-# Phase 0: Orchestration Only
-# Architecture: MASTER.md (LOCKED)
-# =============================================================================
-
 set -euo pipefail
 
+###############################################################################
+# Vicidial EL9 Installer – Role-Aware Orchestrator
+###############################################################################
 
-# -----------------------------------------------------------------------------
-# 1. installer as root 
-# -----------------------------------------------------------------------------
+INSTALLER_ROOT="$(cd "$(dirname "$0")" && pwd)"
+STAGE_DIR="${INSTALLER_ROOT}/stages"
 
+NODE_ROLE="${NODE_ROLE:-}"
 
-if [[ $EUID -ne 0 ]]; then
-  echo "[FATAL] install.sh must be run as root"
+usage() {
+  cat <<EOF
+Usage:
+  NODE_ROLE=<role> ./install.sh
+
+Valid NODE_ROLE values:
+  db         Database node (MariaDB + schema)
+  telephony  Dialer / Asterisk node
+  web        Web UI node
+  all        All-in-one (DEV / LAB ONLY)
+
+Example:
+  NODE_ROLE=db ./install.sh
+EOF
   exit 1
-fi
+}
 
+[[ -z "${NODE_ROLE}" ]] && usage
 
-# -----------------------------------------------------------------------------
-# 1. Resolve installer root (absolute, symlink-safe)
-# -----------------------------------------------------------------------------
+run_stage() {
+  local stage="$1"
+  echo
+  echo "============================================================"
+  echo ">>> Running stage: ${stage}"
+  echo "============================================================"
+  bash "${STAGE_DIR}/${stage}"
+}
 
-INSTALLER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export INSTALLER_ROOT
+case "${NODE_ROLE}" in
+  db)
+    run_stage 01_os_base.sh
+    run_stage 02_web_db.sh
+    run_stage 03_db_init.sh
+    run_stage 05_vicidial_core.sh
+    run_stage health/healthcheck.sh
+    ;;
+  telephony)
+    run_stage 01_os_base.sh
+    run_stage 02b_db_client.sh
+    run_stage 04_telephony.sh
+    run_stage 05_vicidial_core.sh
+    run_stage health/healthcheck.sh
+    ;;
+  web)
+    run_stage 01_os_base.sh
+    run_stage 02b_db_client.sh
+    run_stage 05_vicidial_core.sh
+    run_stage health/healthcheck.sh
+    ;;
+  all)
+    echo "[WARN] All-in-one mode is for DEV/LAB only"
+    run_stage 01_os_base.sh
+    run_stage 02_web_db.sh
+    run_stage 03_db_init.sh
+    run_stage 04_telephony.sh
+    run_stage 05_vicidial_core.sh
+    run_stage health/healthcheck.sh
+    ;;
+  *)
+    echo "ERROR: Invalid NODE_ROLE '${NODE_ROLE}'"
+    usage
+    ;;
+esac
 
-# -----------------------------------------------------------------------------
-# 2. Core paths (DO NOT hardcode elsewhere)
-# -----------------------------------------------------------------------------
-CONFIG_DIR="${INSTALLER_ROOT}/config"
-LIB_DIR="${INSTALLER_ROOT}/lib"
-STAGES_DIR="${INSTALLER_ROOT}/stages"
-LOG_DIR="${INSTALLER_ROOT}/logs"
-
-# -----------------------------------------------------------------------------
-# 3. Sanity checks (Phase 0 responsibility)
-# -----------------------------------------------------------------------------
-if [[ $EUID -ne 0 ]]; then
-  echo "ERROR: Installer must be run as root"
-  exit 1
-fi
-
-for dir in "$CONFIG_DIR" "$LIB_DIR" "$STAGES_DIR"; do
-  [[ -d "$dir" ]] || {
-    echo "ERROR: Required directory missing: $dir"
-    exit 1
-  }
-done
-
-# -----------------------------------------------------------------------------
-# 4. Load configuration (order matters)
-# -----------------------------------------------------------------------------
-set -a 
-source "${CONFIG_DIR}/versions.env"
-source "${CONFIG_DIR}/paths.env"
-source "${CONFIG_DIR}/secrets.env"
-source "${CONFIG_DIR}/features.env"
-set +a
-
-source config/paths.env
-echo "$MYSQL_BIND_ADDRESS"
-echo "$MYSQL_MAX_CONNECTIONS"
-echo "$MYSQL_INNODB_BUFFER_POOL"
-
-# -----------------------------------------------------------------------------
-# Global configuration
-# -----------------------------------------------------------------------------
-# Optional feature flags (safe defaults)
-if [[ -f "${CONFIG_DIR}/features.env" ]]; then
-  source "${CONFIG_DIR}/features.env"
-else
-  echo "[WARN] config/features.env not found – optional features disabled"
-fi
-
-# -----------------------------------------------------------------------------
-# 5. Load shared libraries
-# -----------------------------------------------------------------------------
-source "${LIB_DIR}/common.sh"
-source "${LIB_DIR}/render.sh"
-
-# -----------------------------------------------------------------------------
-# 6. Initialize installer context
-# -----------------------------------------------------------------------------
-init_installer \
-  --root "${INSTALLER_ROOT}" \
-  --logs "${LOG_DIR}"
-
-log_info "Vicidial 2026 Master Installer started"
-log_info "Installer root: ${INSTALLER_ROOT}"
-
-# -----------------------------------------------------------------------------
-# 7. Stage execution (Phase 1 entry point)
-# -----------------------------------------------------------------------------
-for stage in "${STAGES_DIR}"/[0-9][0-9]_*.sh; do
-  run_stage "${stage}"
-done
-
-# -----------------------------------------------------------------------------
-# 8. Phase 2 – Health checks
-# -----------------------------------------------------------------------------
-if [[ -x "${INSTALLER_ROOT}/health/healthcheck.sh" ]]; then
-  log_info "Running health checks"
-  "${INSTALLER_ROOT}/health/healthcheck.sh"
-else
-  log_warn "Health check script not found or not executable"
-fi
-
-# -----------------------------------------------------------------------------
-# 9. Completion
-# -----------------------------------------------------------------------------
-log_success "Vicidial installation completed successfully"
+echo
+echo "============================================================"
+echo "Vicidial installation completed for role: ${NODE_ROLE}"
+echo "============================================================"
 exit 0

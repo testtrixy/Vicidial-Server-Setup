@@ -1,58 +1,101 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+###############################################################################
+# Stage 02 – Web & Database (EL9 – Golden)
+# Purpose:
+#   - Install and configure MariaDB 10.11 (EL9 AppStream)
+#   - Install Perl DB stack (DBI + DBD::MariaDB)
+#   - Create Vicidial databases and users
+#   - Install PHP 7.4 (Remi) and Apache
+#   - Perform authoritative DB preflight checks
+###############################################################################
+
+###############################################################################
+# Bootstrap & Guards
+###############################################################################
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+source "${INSTALLER_ROOT}/lib/common.sh"
+
 require_root
 require_command dnf
 require_command systemctl
 
-log_info "Stage 02: Web & Database started"
+log "=== Stage 02: Web & Database (EL9) ==="
 
 # -----------------------------------------------------------------------------
 # Reboot acknowledgement (Stage 01 dependency)
 # -----------------------------------------------------------------------------
-# Stage 02 ACKNOWLEDGES the reboot boundary
 rm -f /var/lib/vicidial-install/reboot_required
-
-# Enforce reboot sanity (SELinux permissive is acceptable here)
 require_rebooted_if_needed || true
 
-# -----------------------------------------------------------------------------
-# MariaDB Repository (Template-driven)
-# -----------------------------------------------------------------------------
-log_info "Configuring MariaDB ${MARIADB_VERSION} repository"
+###############################################################################
+# OS Guard (Hard Fail if Not EL9)
+###############################################################################
+check_el9
 
-render_template \
-  "${INSTALLER_ROOT}/templates/mysql/mariadb.repo.tpl" \
-  "/etc/yum.repos.d/mariadb.repo" \
-  0644 root:root
+###############################################################################
+# MariaDB + Perl DB Stack Installation (EL9 AppStream)
+###############################################################################
 
-dnf clean all
+log "Installing MariaDB server and Perl DB stack (EL9)"
 
-# -----------------------------------------------------------------------------
-# MariaDB installation (Upstream only)
-# -----------------------------------------------------------------------------
-log_info "Disabling distribution MariaDB module"
-dnf -y module disable mariadb || true
-
-log_info "Removing conflicting distro MariaDB/MySQL packages (if any)"
-dnf -y remove mariadb\* mysql\* || true
-
-dnf clean all
-
-log_info "Installing MariaDB ${MARIADB_VERSION} from upstream repo"
-dnf -y install \
+dnf install -y \
   MariaDB-server \
-  MariaDB-client \
   MariaDB-backup \
-  MariaDB-devel
+  perl \
+  perl-DBI \
+  perl-DBD-MariaDB
 
-log_info "Enabling MariaDB service"
-systemctl enable mariadb --now
+###############################################################################
+# Enable & Start MariaDB
+###############################################################################
 
-# -----------------------------------------------------------------------------
-# Secure MariaDB baseline
-# -----------------------------------------------------------------------------
-log_info "Applying MariaDB baseline security"
+log "Enabling and starting MariaDB service"
+
+systemctl daemon-reexec || true
+systemctl enable --now mariadb
+
+###############################################################################
+# Apply Vicidial MariaDB Configuration
+###############################################################################
+
+VICIDIAL_CNF="/etc/my.cnf.d/vicidial.cnf"
+
+if [[ ! -f "${VICIDIAL_CNF}" ]]; then
+  log "Creating Vicidial MariaDB configuration"
+
+  cat > "${VICIDIAL_CNF}" <<'EOF'
+[mysqld]
+# Vicidial compatibility (EL9)
+sql_mode="NO_ENGINE_SUBSTITUTION"
+default_storage_engine=MyISAM
+
+# Performance tuning
+key_buffer_size=512M
+max_connections=2000
+open_files_limit=24576
+
+# Query cache (MariaDB still supports this)
+query_cache_type=ON
+query_cache_size=64M
+query_cache_limit=2M
+EOF
+else
+  log "Vicidial MariaDB configuration already exists – skipping"
+fi
+
+log "Restarting MariaDB to apply configuration"
+systemctl restart mariadb
+
+###############################################################################
+# Secure MariaDB Baseline
+###############################################################################
+
+log "Applying MariaDB baseline security hardening"
 
 mysql <<'EOF'
 DELETE FROM mysql.user WHERE User='';
@@ -61,83 +104,67 @@ DELETE FROM mysql.db WHERE Db LIKE 'test%';
 FLUSH PRIVILEGES;
 EOF
 
-# -----------------------------------------------------------------------------
-# MySQL tuning
-# -----------------------------------------------------------------------------
-require_vars MYSQL_BIND_ADDRESS MYSQL_MAX_CONNECTIONS MYSQL_INNODB_BUFFER_POOL
+###############################################################################
+# Vicidial Databases & Users
+###############################################################################
 
-render_template \
-  "${INSTALLER_ROOT}/templates/mysql/vicidial.cnf.tpl" \
-  "/etc/my.cnf.d/vicidial.cnf" \
-  0644 root:root
+require_vars VICIDIAL_DB_NAME VICIDIAL_DB_USER VICIDIAL_DB_PASS
 
-systemctl restart mariadb
-
-# -----------------------------------------------------------------------------
-# Vicidial databases & user
-# -----------------------------------------------------------------------------
-log_info "Creating Vicidial databases and user"
+log "Creating Vicidial databases and users"
 
 mysql <<EOF
-CREATE DATABASE IF NOT EXISTS asterisk CHARACTER SET utf8mb4;
-CREATE DATABASE IF NOT EXISTS vicidial CHARACTER SET utf8mb4;
+CREATE DATABASE IF NOT EXISTS asterisk CHARACTER SET utf8;
+CREATE DATABASE IF NOT EXISTS ${VICIDIAL_DB_NAME} CHARACTER SET utf8;
 
 CREATE USER IF NOT EXISTS '${VICIDIAL_DB_USER}'@'localhost'
   IDENTIFIED BY '${VICIDIAL_DB_PASS}';
 
-GRANT ALL PRIVILEGES ON asterisk.* TO '${VICIDIAL_DB_USER}'@'localhost';
-GRANT ALL PRIVILEGES ON vicidial.* TO '${VICIDIAL_DB_USER}'@'localhost';
-FLUSH PRIVILEGES;
-EOF
-
-
-log_info "Ensuring Vicidial database users exist (localhost + wildcard)"
-
-mysql -u root <<EOF
--- Localhost access (used by PHP & AGI)
-CREATE USER IF NOT EXISTS '${VICIDIAL_DB_USER}'@'localhost'
-  IDENTIFIED BY '${VICIDIAL_DB_PASS}';
-
-GRANT ALL PRIVILEGES ON ${VICIDIAL_DB_NAME}.* 
-  TO '${VICIDIAL_DB_USER}'@'localhost';
-
--- Wildcard access (required by Vicidial SQL + clustering)
 CREATE USER IF NOT EXISTS '${VICIDIAL_DB_USER}'@'%'
   IDENTIFIED BY '${VICIDIAL_DB_PASS}';
 
-GRANT ALL PRIVILEGES ON ${VICIDIAL_DB_NAME}.* 
-  TO '${VICIDIAL_DB_USER}'@'%';
+GRANT ALL PRIVILEGES ON asterisk.* TO '${VICIDIAL_DB_USER}'@'localhost';
+GRANT ALL PRIVILEGES ON asterisk.* TO '${VICIDIAL_DB_USER}'@'%';
+
+GRANT ALL PRIVILEGES ON ${VICIDIAL_DB_NAME}.* TO '${VICIDIAL_DB_USER}'@'localhost';
+GRANT ALL PRIVILEGES ON ${VICIDIAL_DB_NAME}.* TO '${VICIDIAL_DB_USER}'@'%';
 
 FLUSH PRIVILEGES;
 EOF
 
+###############################################################################
+# PHP 7.4 via Remi (EL9)
+###############################################################################
 
-# -----------------------------------------------------------------------------
-# PHP 7.4 via Remi
-# -----------------------------------------------------------------------------
-log_info "Installing PHP ${PHP_VERSION} via Remi"
+require_vars PHP_VERSION
 
-dnf -y install https://rpms.remirepo.net/enterprise/remi-release-9.rpm
+log "Installing PHP ${PHP_VERSION} via Remi repository"
+
+dnf install -y https://rpms.remirepo.net/enterprise/remi-release-9.rpm
 dnf module reset php -y
 dnf module enable php:remi-${PHP_VERSION} -y
 
-dnf -y install \
+dnf install -y \
   php php-cli php-common php-mysqlnd php-gd php-mbstring \
   php-imap php-xml php-pear php-process php-pdo
 
-# -----------------------------------------------------------------------------
-# Apache
-# -----------------------------------------------------------------------------
+###############################################################################
+# Apache HTTPD
+###############################################################################
 
-# # /etc/dnf/dnf.conf
-#block MySQL packages globally
-dnf -y remove mysql-libs mysql-common 2>/dev/null || true
-exclude=mysql* community-mysql*
+log "Installing Apache HTTPD"
 
+dnf install -y httpd mod_ssl
+systemctl enable --now httpd
 
-log_info "Installing Apache"
+###############################################################################
+# Authoritative Database Preflight (EL9-Golden)
+###############################################################################
 
-dnf -y install httpd mod_ssl
-systemctl enable httpd --now
+log "Running authoritative EL9 database preflight checks"
+db_preflight
 
-log_success "Stage 02 completed successfully"
+###############################################################################
+# Completion
+###############################################################################
+
+log "Stage 02 completed successfully (EL9-Golden)"

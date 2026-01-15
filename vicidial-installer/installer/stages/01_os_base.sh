@@ -29,6 +29,17 @@ log_info "Stage 01: OS base bootstrap started"
 # -----------------------------------------------------------------------------
 # OS validation (EL9 only)
 # -----------------------------------------------------------------------------
+
+dnf install -y dnf-plugins-core
+
+dnf config-manager --set-enabled crb || {
+  fatal "ERROR: CRB repository could not be enabled"
+}
+
+dnf install -y epel-release
+
+
+
 if ! grep -qE 'Rocky|Alma' /etc/os-release; then
   fatal "Unsupported OS. Rocky or Alma Linux EL9 required."
 fi
