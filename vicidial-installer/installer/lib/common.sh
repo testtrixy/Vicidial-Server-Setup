@@ -119,6 +119,41 @@ mark_stage_complete() {
 # -----------------------------------------------------------------------------
 # Stage execution
 # -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# Stage marker helpers (EL9-Golden)
+# -----------------------------------------------------------------------------
+
+
+ensure_marker_dir() {
+  mkdir -p "${MARKER_DIR}"
+}
+
+stage_begin() {
+  local stage="$1"
+  local marker="${MARKER_DIR}/${stage}.done"
+
+  ensure_marker_dir
+
+  if [[ -f "${marker}" ]]; then
+    log "Stage ${stage} already completed – skipping"
+    exit 0
+  fi
+
+  log "Starting stage: ${stage}"
+}
+
+stage_finish() {
+  local stage="$1"
+  local marker="${MARKER_DIR}/${stage}.done"
+
+  touch "${marker}"
+  log "Stage ${stage} completed successfully"
+}
+
+
+
+
 run_stage() {
   local stage="$1"
   local name
@@ -181,3 +216,105 @@ require_rebooted_if_needed() {
 # -----------------------------------------------------------------------------
 # End of common.sh
 # -----------------------------------------------------------------------------
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+#############################################
+# EL9 Vicidial – Common Functions
+# Authoritative for Rocky / Alma Linux 9
+#############################################
+
+log() {
+  echo -e "[INFO] $*"
+}
+
+fail() {
+  echo -e "[FATAL] $*" >&2
+  exit 1
+}
+
+#############################################
+# OS & Platform Guard
+#############################################
+check_el9() {
+  if ! grep -qE 'Rocky Linux 9|AlmaLinux 9' /etc/os-release; then
+    fail "Unsupported OS. This installer is EL9-only."
+  fi
+  log "EL9 OS detected"
+}
+
+#############################################
+# MariaDB Server Check
+#############################################
+check_mariadb_service() {
+  if ! systemctl is-active --quiet mariadb; then
+    fail "MariaDB service is not running"
+  fi
+  log "MariaDB service is running"
+}
+
+#############################################
+# Perl + DBI + DBD::MariaDB Check
+#############################################
+check_perl_db_stack() {
+  log "Checking Perl DBI stack..."
+
+  perl -MDBI -e 'exit' 2>/dev/null \
+    || fail "Perl DBI missing (install perl-DBI)"
+
+  perl -MDBD::MariaDB -e 'exit' 2>/dev/null \
+    || fail "Perl DBD::MariaDB missing (install perl-DBD-MariaDB)"
+
+  log "Perl DBI + DBD::MariaDB OK"
+}
+
+#############################################
+# Detect MariaDB Socket Dynamically
+#############################################
+get_mariadb_socket() {
+  local socket
+
+  socket=$(mysql -e "SHOW VARIABLES LIKE 'socket';" \
+           -s --skip-column-names 2>/dev/null | awk '{print $2}')
+
+  if [[ -z "${socket}" ]]; then
+    fail "Unable to detect MariaDB socket"
+  fi
+
+  if [[ ! -S "${socket}" ]]; then
+    fail "MariaDB socket not found at ${socket}"
+  fi
+
+  echo "${socket}"
+}
+
+#############################################
+# DBI Connectivity Test (Authoritative)
+#############################################
+check_dbi_connection() {
+  local socket
+  socket="$(get_mariadb_socket)"
+
+  log "Testing DBI connectivity via socket ${socket}"
+
+  perl -MDBI -e "
+    DBI->connect(
+      'DBI:MariaDB:database=mysql;host=localhost;mariadb_socket=${socket}',
+      'root',''
+    ) or die \$DBI::errstr;
+  " 2>/dev/null \
+    || fail "DBI connection test failed"
+
+  log "DBI CONNECT OK"
+}
+
+#############################################
+# Composite Preflight (Call This in Stages)
+#############################################
+db_preflight() {
+  check_el9
+  check_mariadb_service
+  check_perl_db_stack
+  check_dbi_connection
+}

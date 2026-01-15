@@ -22,7 +22,8 @@ set -euo pipefail
 require_root
 require_command systemctl
 
-
+STAGE_NAME="Stage_08"
+stage_begin "${STAGE_NAME}"
 
 log_success "---------------- – -------------------------------"
  log_info "Stage 08: Modern extras (optional) started"
@@ -138,3 +139,4 @@ fi
 # Completion
 # -----------------------------------------------------------------------------
 log_success "Stage 08 completed – modern extras applied (optional)"
+stage_finish "${STAGE_NAME}"

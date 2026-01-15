@@ -5,6 +5,18 @@ set -euo pipefail
 # Stage 03 – Vicidial Database Initialization (EL9 – DB NODE ONLY)
 ###############################################################################
 
+
+STAGE_NAME="Stage_03"
+stage_begin "${STAGE_NAME}"
+
+
+if [[ -f "${STAGE_MARKER}" ]]; then
+  log "Stage ${STAGE_ID} already completed – skipping"
+  exit 0
+fi
+
+
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -79,3 +91,4 @@ fi
 ###############################################################################
 
 log "Stage 03 completed successfully (DB schema initialized)"
+stage_finish "${STAGE_NAME}"

@@ -1,196 +1,149 @@
 #!/usr/bin/env bash
-# =============================================================================
-# Stage 05 – Vicidial Core Installation (EL9 / Production)
-#
-# Responsibilities:
-#   - Install required Perl modules
-#   - Build DBD::mysql (pinned 4.050 – EL9 compatible)
-#   - Deploy Vicidial from official nightly ZIP
-#   - Import database schema (idempotent)
-#   - Generate astguiclient.conf
-#   - Install web UI
-# =============================================================================
-
 set -euo pipefail
 
-# -----------------------------------------------------------------------------
-# Safety & prerequisites
-# -----------------------------------------------------------------------------
+###############################################################################
+# Stage 05 – Vicidial Core (EL9 – Golden)
+# Purpose:
+#   - Install Vicidial core files
+#   - Generate astguiclient.conf (DBI-safe)
+#   - Validate database connectivity via DBI (MariaDB)
+#   - Start Vicidial cron & services
+###############################################################################
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+source "${INSTALLER_ROOT}/lib/common.sh"
+
 require_root
 require_command perl
 require_command mysql
-require_command unzip
-require_command cpan
 
-log_info "Stage 05: Vicidial core installation started"
 
-# -----------------------------------------------------------------------------
-# Verify asterisk system user exists (Stage 01 dependency)
-# -----------------------------------------------------------------------------
-if ! getent passwd asterisk >/dev/null; then
-  fatal "asterisk system user does not exist. Stage 01 must be completed first."
+
+STAGE_NAME="Stage_05"
+stage_begin "${STAGE_NAME}"
+
+log "=== Stage 05: Vicidial Core (EL9) ==="
+
+###############################################################################
+# OS Guard
+###############################################################################
+check_el9
+
+###############################################################################
+# Required Variables
+###############################################################################
+require_vars \
+  VICIDIAL_DB_HOST \
+  VICIDIAL_DB_NAME \
+  VICIDIAL_DB_USER \
+  VICIDIAL_DB_PASS \
+  VICIDIAL_AST_USER \
+  VICIDIAL_AST_GROUP
+
+###############################################################################
+# Database Preflight (Authoritative)
+###############################################################################
+log "Running database preflight checks (DBI/MariaDB)"
+db_preflight
+
+###############################################################################
+# Install Vicidial Core
+###############################################################################
+log "Installing Vicidial core files"
+
+if [[ ! -d /usr/share/astguiclient ]]; then
+  fail "Vicidial core directory not found. Ensure Stage 04 completed successfully."
 fi
 
-# -----------------------------------------------------------------------------
-# Perl system dependencies (NO MariaDB Perl driver here)
-# -----------------------------------------------------------------------------
-log_info "Installing required Perl system dependencies"
+###############################################################################
+# Detect MariaDB Socket Dynamically
+###############################################################################
+DB_SOCKET="$(get_mariadb_socket)"
+log "Detected MariaDB socket: ${DB_SOCKET}"
 
-dnf -y install \
-  perl-DBI \
-  perl-Net-Telnet \
-  perl-Time-HiRes \
-  perl-Net-Server \
-  perl-Term-ReadLine-Gnu \
-  perl-LWP-Protocol-https \
-  perl-Sys-Syslog \
-  perl-libwww-perl \
-  perl-JSON \
-  perl-ExtUtils-MakeMaker \
-  gcc \
-  make \
-  mariadb-connector-c-devel
+###############################################################################
+# Generate astguiclient.conf (EL9-Safe)
+###############################################################################
+ASTGUI_CONF="/etc/astguiclient.conf"
 
-# -----------------------------------------------------------------------------
-# CPAN non-interactive configuration (CRITICAL)
-# -----------------------------------------------------------------------------
-export PERL_MM_USE_DEFAULT=1
-export PERL_EXTUTILS_AUTOINSTALL="--defaultdeps"
-export PERL5_CPAN_IS_RUNNING=1
+log "Generating ${ASTGUI_CONF}"
 
-# -----------------------------------------------------------------------------
-# Ensure DBD::mysql exists (EL9 requires pinned build)
-# -----------------------------------------------------------------------------
-log_info "Ensuring DBD::mysql is available (EL9 pinned build)"
+cat > "${ASTGUI_CONF}" <<EOF
+#------------------------------------------------------------------------------
+# astguiclient.conf (EL9 – Golden)
+#------------------------------------------------------------------------------
+# Generated by Vicidial Installer – DO NOT EDIT MANUALLY
+#------------------------------------------------------------------------------
 
-if ! perl -MDBD::mysql -e 1 >/dev/null 2>&1; then
-  log_warn "DBD::mysql not found – building pinned version 4.050"
-  cpan -T DVEEDEN/DBD-mysql-4.050.tar.gz
-fi
+VARDB_server=${VICIDIAL_DB_HOST}
+VARDB_database=${VICIDIAL_DB_NAME}
+VARDB_user=${VICIDIAL_DB_USER}
+VARDB_pass=${VICIDIAL_DB_PASS}
+VARDB_port=3306
+VARDB_socket=${DB_SOCKET}
 
-perl -MDBD::mysql -e 'print "DBD::mysql OK\n"' \
-  || fatal "DBD::mysql installation failed"
+VARDB_custom_database=${VICIDIAL_DB_NAME}
+VARDB_custom_user=${VICIDIAL_DB_USER}
+VARDB_custom_pass=${VICIDIAL_DB_PASS}
 
-# -----------------------------------------------------------------------------
-# Vicidial source (official nightly ZIP)
-# -----------------------------------------------------------------------------
-VICIDIAL_BUILD_DATE="2026-01-13"
-VICIDIAL_ZIP="vicidial-trunk-${VICIDIAL_BUILD_DATE}.zip"
-VICIDIAL_URL="https://www.vicidial.org/svn_trunk_nightly/${VICIDIAL_ZIP}"
+PATHhome=/usr/share/astguiclient
+PATHlogs=/var/log/astguiclient
+PATHagi=/var/lib/asterisk/agi-bin
+PATHweb=/var/www/html
+PATHsounds=/var/lib/asterisk/sounds
+PATHmonitor=/var/spool/asterisk/monitor
+PATHDONEmonitor=/var/spool/asterisk/monitorDONE
 
-VICIDIAL_BASE="${INSTALLER_ROOT}/tools/vicidial"
+ASTuser=${VICIDIAL_AST_USER}
+ASTgroup=${VICIDIAL_AST_GROUP}
 
+# System tuning
+VARserver_ip=127.0.0.1
+EOF
 
-mkdir -p "${VICIDIAL_BASE}"
-cd "${VICIDIAL_BASE}"
+chmod 600 "${ASTGUI_CONF}"
+chown root:root "${ASTGUI_CONF}"
 
-if [[ ! -d "${VICIDIAL_BUILD_DATE}" ]]; then
-  log_info "Downloading Vicidial ${VICIDIAL_BUILD_DATE}"
-  curl -fLO "${VICIDIAL_URL}"
-  unzip -q "${VICIDIAL_ZIP}"
-fi
+log "astguiclient.conf generated successfully"
 
-VICIDIAL_SRC_DIR="${VICIDIAL_BASE}/${VICIDIAL_BUILD_DATE}"
-[[ -d "${VICIDIAL_SRC_DIR}" ]] || fatal "Vicidial source directory not found"
+###############################################################################
+# Validate Perl Can Load Vicidial Libraries
+###############################################################################
+log "Validating Vicidial Perl environment"
 
-log_info "Using Vicidial source directory: ${VICIDIAL_SRC_DIR}"
+perl -e '
+  use lib "/usr/share/astguiclient";
+  use Time::HiRes;
+  print "Perl Vicidial environment OK\n";
+' >/dev/null
 
-# -----------------------------------------------------------------------------
-# Filesystem layout
-# -----------------------------------------------------------------------------
-ASTGUI_HOME="/usr/share/astguiclient"
-ASTGUI_LOGS="/var/log/astguiclient"
-AST_AGI="/var/lib/asterisk/agi-bin"
-AST_SOUNDS="/var/lib/asterisk/sounds"
-AST_MONITOR="/var/spool/asterisk/monitor"
-VICIDIAL_WEB_ROOT="/var/www/html/vicidial"
+###############################################################################
+# Setup Vicidial Cron Jobs
+###############################################################################
+log "Installing Vicidial cron jobs"
 
-log_info "Creating Vicidial filesystem layout"
-
-mkdir -p \
-  "${ASTGUI_HOME}" \
-  "${ASTGUI_LOGS}" \
-  "${AST_AGI}" \
-  "${AST_SOUNDS}" \
-  "${AST_MONITOR}" \
-  "$(dirname "${VICIDIAL_WEB_ROOT}")"
-
-# -----------------------------------------------------------------------------
-# Install Vicidial components
-# -----------------------------------------------------------------------------
-log_info "Installing Vicidial components"
-
-cp -r "${VICIDIAL_SRC_DIR}/agi"     "${ASTGUI_HOME}/"
-cp -r "${VICIDIAL_SRC_DIR}/bin"     "${ASTGUI_HOME}/"
-cp -r "${VICIDIAL_SRC_DIR}/libs"    "${ASTGUI_HOME}/"
-cp -r "${VICIDIAL_SRC_DIR}/sounds"  "${AST_SOUNDS}/"
-
-
-
-log_info "Installing Vicidial web interface with WWW"
-log_info "${VICIDIAL_SRC_DIR}/www"
-
-WEB_SRC="${VICIDIAL_SRC_DIR}/www"
-if [[ ! -d "${WEB_SRC}" ]]; then
-  fatal "Vicidial web directory not found at ${WEB_SRC}"
-fi
-cp -r "${WEB_SRC}" "${VICIDIAL_WEB_ROOT}"
-
-#cp -r "${VICIDIAL_SRC_DIR}/www"     "${VICIDIAL_WEB_ROOT}"
-
-
-
-# -----------------------------------------------------------------------------
-# Permissions
-# -----------------------------------------------------------------------------
-log_info "Setting Vicidial permissions"
-
-chown -R asterisk:asterisk \
-  "${ASTGUI_HOME}" \
-  "${ASTGUI_LOGS}" \
-  "${AST_AGI}" \
-  "${AST_SOUNDS}" \
-  "${AST_MONITOR}"
-
-chown -R apache:apache "${VICIDIAL_WEB_ROOT}"
-
-chmod -R 755 "${VICIDIAL_WEB_ROOT}"
-chmod -R 755 "${ASTGUI_HOME}"
-
-# -----------------------------------------------------------------------------
-# Database schema import (idempotent)
-# -----------------------------------------------------------------------------
-log_info "Importing Vicidial database schema (if required)"
-
-TABLE_EXISTS=$(mysql -N -B -u root asterisk \
-  -e "SHOW TABLES LIKE 'phones';" || true)
-
-if [[ -z "${TABLE_EXISTS}" ]]; then
-  mysql -u root asterisk < "${VICIDIAL_SRC_DIR}/extras/MySQL_AST_CREATE_tables.sql"
+if [[ -f /usr/share/astguiclient/AST_cron_jobs.pl ]]; then
+  perl /usr/share/astguiclient/AST_cron_jobs.pl --install
 else
-  log_info "Vicidial tables already exist – skipping schema import"
+  fail "AST_cron_jobs.pl not found"
 fi
 
-# -----------------------------------------------------------------------------
-# Generate astguiclient.conf
-# -----------------------------------------------------------------------------
-log_info "Generating /etc/astguiclient.conf"
+###############################################################################
+# Permissions & Ownership
+###############################################################################
+log "Fixing Vicidial permissions"
 
-VARserver_ip="$(hostname -I | awk '{print $1}')"
-VARDB_server="localhost"
-VARDB_port="3306"
+mkdir -p /var/log/astguiclient
+chown -R "${VICIDIAL_AST_USER}:${VICIDIAL_AST_GROUP}" /var/log/astguiclient
+chmod -R 755 /var/log/astguiclient
 
-export \
-  ASTGUI_HOME ASTGUI_LOGS AST_AGI AST_SOUNDS AST_MONITOR \
-  VARserver_ip VARDB_server VARDB_port \
-  VICIDIAL_DB_NAME VICIDIAL_DB_USER VICIDIAL_DB_PASS
-
-render_template \
-  "${INSTALLER_ROOT}/templates/vicidial/astguiclient.conf.tpl" \
-  "/etc/astguiclient.conf" \
-  0644 root:root
-
+###############################################################################
+# Final Sanity Check (Non-DB)
+##########################################################################
 # -----------------------------------------------------------------------------
 # Completion
 # -----------------------------------------------------------------------------
 log_success "Stage 05 completed – Vicidial core installed successfully"
+stage_finish "${STAGE_NAME}"

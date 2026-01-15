@@ -15,6 +15,10 @@ set -euo pipefail
 # Bootstrap & Guards
 ###############################################################################
 
+
+STAGE_NAME="Stage_02"
+stage_begin "${STAGE_NAME}"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -168,3 +172,4 @@ db_preflight
 ###############################################################################
 
 log "Stage 02 completed successfully (EL9-Golden)"
+stage_finish "${STAGE_NAME}"

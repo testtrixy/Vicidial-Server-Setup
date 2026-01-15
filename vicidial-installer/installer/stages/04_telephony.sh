@@ -23,6 +23,8 @@ require_command patch
 
 
 
+STAGE_NAME="Stage_04"
+stage_begin "${STAGE_NAME}"
 log_success "---------------- – -------------------------------"
   log_info "Stage 04: Telephony Core (Vicidial-patched Asterisk 18) started"
 log_success "---------------- – -------------------------------"
@@ -225,5 +227,5 @@ log_success "Stage 04 completed – Vicidial telephony stack ready"
 # This is handled in Stage 06 (Automation & Hardening).
 
 
-
+stage_finish "${STAGE_NAME}"
 

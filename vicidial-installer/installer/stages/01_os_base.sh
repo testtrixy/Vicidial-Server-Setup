@@ -26,6 +26,11 @@ require_command systemctl
 
 log_info "Stage 01: OS base bootstrap started"
 
+STAGE_NAME="Stage_01"
+stage_begin "${STAGE_NAME}"
+
+
+
 # -----------------------------------------------------------------------------
 # OS validation (EL9 only)
 # -----------------------------------------------------------------------------
@@ -210,3 +215,5 @@ mkdir -p /var/lib/vicidial-install
 touch /var/lib/vicidial-install/reboot_required
 log_warn "REBOOT REQUIRED before proceeding to Stage 02 (SELinux & kernel changes)"
 #require_rebooted_if_needed
+
+stage_finish "${STAGE_NAME}"

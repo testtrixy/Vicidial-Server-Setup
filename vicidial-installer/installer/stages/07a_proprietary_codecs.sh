@@ -18,6 +18,15 @@
 
 set -euo pipefail
 
+
+STAGE_NAME="Stage_07a"
+stage_begin "${STAGE_NAME}"
+log_success "---------------- – -------------------------------"
+  log_info "Stage 07a: Audio & codec setup started"
+log_success "---------------- – -------------------------------"
+
+
+
 # -----------------------------------------------------------------------------
 # HARD GATES – DO NOT REMOVE
 # -----------------------------------------------------------------------------
@@ -99,3 +108,4 @@ asterisk -rx "core show translation"
 # Completion notice
 # -----------------------------------------------------------------------------
 log_success "Stage 07a completed – proprietary codecs installed (operator responsibility)"
+stage_finish "${STAGE_NAME}"

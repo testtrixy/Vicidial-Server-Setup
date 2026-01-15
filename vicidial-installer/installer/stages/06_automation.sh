@@ -25,6 +25,10 @@ require_command crontab
 require_command perl
 require_command asterisk
 
+
+STAGE_NAME="Stage_06a"
+stage_begin "${STAGE_NAME}"
+
 log_success "-------------------------------------------------------"
 log_info "Stage 06: Vicidial automation & hardening started"
 log_success "-------------------------------------------------------"
@@ -153,5 +157,6 @@ chmod -R 755 /var/www/html
 # -----------------------------------------------------------------------------
 # Completion
 # -----------------------------------------------------------------------------
-touch /var/lib/vicidial-install/phase_6_complete
+
 log_success "Stage 06 completed – Vicidial automation & hardening done"
+stage_finish "${STAGE_NAME}"

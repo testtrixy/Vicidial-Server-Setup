@@ -115,3 +115,4 @@ fi
 # Completion
 # -----------------------------------------------------------------------------
 log_success "Stage 07 completed – audio & codecs ready"
+stage_finish "${STAGE_NAME}"
