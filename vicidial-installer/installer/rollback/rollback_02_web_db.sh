@@ -1,37 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/rollback_header.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
+echo "[ROLLBACK] Stage 02 – Web / Database"
 
-require_root
-log_warn "ROLLBACK: Stage 02 – Web & Database"
+VICIDIAL_CNF="/etc/my.cnf.d/vicidial.cnf"
 
-log_info "Stopping services"
+if systemctl list-unit-files | grep -q '^mariadb\.service'; then
+  systemctl stop mariadb || true
+  echo "Stopped MariaDB service"
+fi
 
+if [[ -f "${VICIDIAL_CNF}" ]]; then
+  rm -f "${VICIDIAL_CNF}"
+  echo "Removed Vicidial MariaDB configuration"
+fi
 
-for svc in mariadb httpd; do
-  if systemctl list-unit-files | grep -q "^${svc}\.service"; then
-    log_info "Stopping and disabling ${svc}"
-    systemctl stop "${svc}" || true
-    systemctl disable "${svc}" || true
-  else
-    log_info "${svc} service not present – skipping"
-  fi
-done
+# IMPORTANT:
+# Do NOT:
+# - delete databases
+# - delete users
+# - uninstall MariaDB packages
 
-
-#systemctl stop mariadb httpd || true
-#systemctl disable mariadb httpd || true
-
-log_info "Removing MariaDB & Apache packages"
-dnf -y remove mariadb-server mariadb-backup mariadb-devel httpd php\* || true
-
-log_warn "Removing MariaDB data directory"
-rm -rf /var/lib/mysql
-
-log_info "Removing MariaDB repository"
-rm -f /etc/yum.repos.d/mariadb.repo
-
-rm -f "${MARKER_DIR}/phase_02_complete"
-log_success "Stage 02 rollback completed"
+echo "[ROLLBACK] Stage 02 completed safely"
+exit 0

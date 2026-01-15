@@ -1,21 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
-#!/usr/bin/env bash
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/rollback_header.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 
-require_root
-log_warn "ROLLBACK: Stage 04 – Telephony Core"
+echo "[ROLLBACK] Stage 04 – Telephony (Asterisk / DAHDI)"
 
-systemctl stop asterisk || true
-systemctl disable asterisk || true
+if systemctl list-unit-files | grep -q '^asterisk\.service'; then
+  systemctl stop asterisk || true
+  systemctl disable asterisk || true
+  echo "Stopped and disabled Asterisk service"
+fi
 
-dnf -y remove asterisk\* dahdi\* libpri\* libsrtp\* || true
+# Remove compiled artifacts only
+rm -rf /usr/lib64/asterisk || true
+rm -rf /var/lib/asterisk || true
+rm -rf /var/spool/asterisk || true
+rm -rf /etc/asterisk || true
+rm -f  /usr/sbin/asterisk || true
 
-rm -rf /etc/asterisk
-rm -rf /var/lib/asterisk
-rm -rf /usr/lib64/asterisk
-rm -rf /usr/src/asterisk*
+# IMPORTANT:
+# Do NOT remove:
+# - kernel-devel
+# - kernel-headers
+# - gcc / make
+# - system libraries
 
-rm -f "${MARKER_DIR}/phase_04_complete"
-log_success "Stage 04 rollback completed"
+echo "[ROLLBACK] Stage 04 completed safely"
+exit 0

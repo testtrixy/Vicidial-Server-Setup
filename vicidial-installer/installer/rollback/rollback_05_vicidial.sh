@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/rollback_header.sh"
 
-require_root
-log_warn "ROLLBACK: Stage 05 – Vicidial Core"
+echo "[ROLLBACK] Stage 05 – Vicidial Core"
 
-rm -rf /usr/share/astguiclient
-rm -f /etc/astguiclient.conf
+# Remove Vicidial cron jobs only
+if command -v crontab >/dev/null; then
+  crontab -l 2>/dev/null | grep -v astguiclient | crontab - || true
+  echo "Removed Vicidial cron entries"
+fi
 
-mysql -e "DROP DATABASE IF EXISTS asterisk;" || true
+# Remove Vicidial application files
+rm -rf /usr/share/astguiclient || true
+rm -rf /var/log/astguiclient || true
+rm -rf /var/www/html/vicidial || true
+rm -f  /etc/astguiclient.conf || true
 
-rm -f "${MARKER_DIR}/phase_05_complete"
-log_success "Stage 05 rollback completed"
+# IMPORTANT:
+# Do NOT:
+# - uninstall Perl modules
+# - remove MariaDB client
+# - remove Asterisk binaries
+
+echo "[ROLLBACK] Stage 05 completed safely"
+exit 0

@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
+
 set -euo pipefail
+
+
+echo "ERROR: Stage 06 is deprecated and not used in EL9 installer."
+exit 1
+
+
+
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/common.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/rollback_header.sh"
 
