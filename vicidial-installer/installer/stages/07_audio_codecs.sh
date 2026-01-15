@@ -39,10 +39,11 @@ MOH_DIR="/var/lib/asterisk/moh"
 # -----------------------------------------------------------------------------
 log_info "Installing audio utilities (lame, sox, flac)"
 
+log_info "Installing audio utilities (EL9 compatible)"
+
 dnf -y install \
-  lame \
   sox \
-  sox-fmt-mp3 \
+  lame \
   flac
 
 # -----------------------------------------------------------------------------
