@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # =============================================================================
 # Stage 06 – Automation & Hardening
+#
 # Responsibilities:
+#   - Install native systemd service for Asterisk (EL9)
+#   - Enable & start Asterisk (FIRST TIME)
 #   - Install full Vicidial cron set (keepalive, audio, DB maintenance)
-#   - Harden Asterisk AMI (localhost only, cron user)
-#   - Ensure Asterisk service reliability (systemd drop-in)
+#   - Harden Asterisk AMI (localhost only)
 #   - Final runtime permissions
 #
-# ASSUMES:
-#   - Stages 01–05 completed
-#   - Vicidial core installed in /usr/share/astguiclient
-#   - Asterisk running
+# DESIGN RULE:
+#   - Stage 04 builds Asterisk (NO services)
+#   - Stage 06 operationalizes Asterisk (systemd + cron)
 # =============================================================================
 
 set -euo pipefail
@@ -19,24 +20,17 @@ set -euo pipefail
 # Safety & prerequisites
 # -----------------------------------------------------------------------------
 require_root
+require_command systemctl
 require_command crontab
 require_command perl
+require_command asterisk
 
-
-
-log_success "---------------- – -------------------------------"
- log_info "Stage 06: Vicidial automation & hardening started"
-log_success "---------------- – -------------------------------"
-
-
-
-log_info "-------------------------------------------------------"
- log_info "Starting Asterisk - at Stage 6"
-log_info "-------------------------------------------------------"
-
+log_success "-------------------------------------------------------"
+log_info "Stage 06: Vicidial automation & hardening started"
+log_success "-------------------------------------------------------"
 
 # -----------------------------------------------------------------------------
-# 0. Ensure Asterisk systemd service (EL9 native)
+# 0. Install native systemd service for Asterisk (EL9 ONLY)
 # -----------------------------------------------------------------------------
 log_info "Installing native systemd service for Asterisk (EL9)"
 
@@ -72,26 +66,25 @@ systemctl daemon-reload
 systemctl enable asterisk
 systemctl start asterisk
 
-log_info "-----------------------------------------------------------------------"
-
-
-log_info "Verifying Asterisk is running"
+# -----------------------------------------------------------------------------
+# 1. Verify Asterisk is actually running (FAIL FAST)
+# -----------------------------------------------------------------------------
+log_info "Verifying Asterisk runtime"
 
 if ! asterisk -rx "core show uptime" >/dev/null 2>&1; then
-  fatal "Asterisk failed to start – cannot continue with automation"
+  fatal "Asterisk failed to start – automation cannot continue"
 fi
 
+log_success "Asterisk is running and responsive"
 
-
-
+# -----------------------------------------------------------------------------
+# 2. Vicidial cron jobs (FULL, production-safe set)
+# -----------------------------------------------------------------------------
 VICIDIAL_HOME="/usr/share/astguiclient"
 CRON_USER="root"
 
 require_dir "${VICIDIAL_HOME}"
 
-# -----------------------------------------------------------------------------
-# 1. Vicidial Cron Jobs (FULL SET – production safe)
-# -----------------------------------------------------------------------------
 log_info "Installing Vicidial cron jobs"
 
 CRON_FILE="/tmp/vicidial.cron"
@@ -109,10 +102,56 @@ cat <<'EOF' > "${CRON_FILE}"
 * * * * * /usr/bin/perl /usr/share/astguiclient/AST_update.pl
 * * * * * /usr/bin/perl /usr/share/astguiclient/AST_update_phones.pl
 * * * * * /usr/bin/perl /usr/share/astguiclient/AST_update_user_groups.pl
-* * * * * /usr/bin/perl /usr/share/astguiclient/AST*
 
-# --- Log & DB archive (CRITICAL) ---
+# --- Audio processing ---
+1 1 * * * /usr/bin/perl /usr/share/astguiclient/AST_CRON_audio_1_move_mix.pl
+2 1 * * * /usr/bin/perl /usr/share/astguiclient/AST_CRON_audio_2_compress.pl --MP3
 
+# --- Log & DB archive (CRITICAL – prevents disk fill) ---
 30 2 * * * /usr/bin/perl /usr/share/astguiclient/ADMIN_archive_log_tables.pl
 15 3 * * * /usr/bin/perl /usr/share/astguiclient/AST_cleanup_log_files.pl
+EOF
 
+# Install crontab safely (idempotent)
+crontab -l 2>/dev/null | grep -v astguiclient > /tmp/cron.clean || true
+cat /tmp/cron.clean "${CRON_FILE}" | crontab -
+rm -f /tmp/cron.clean "${CRON_FILE}"
+
+log_success "Vicidial cron jobs installed"
+
+# -----------------------------------------------------------------------------
+# 3. Harden Asterisk Manager Interface (AMI)
+# -----------------------------------------------------------------------------
+log_info "Hardening Asterisk AMI (localhost only)"
+
+cat >/etc/asterisk/manager.conf <<'EOF'
+[general]
+enabled = yes
+port = 5038
+bindaddr = 127.0.0.1
+displayconnects = no
+
+[cron]
+secret = 1234
+read = system,call,log,verbose,command,agent,user,originate
+write = system,call,log,verbose,command,agent,user,originate
+EOF
+
+asterisk -rx "manager reload" || true
+
+# -----------------------------------------------------------------------------
+# 4. Final permissions
+# -----------------------------------------------------------------------------
+log_info "Applying final permissions"
+
+chown -R asterisk:asterisk /var/log/asterisk /var/lib/asterisk /var/spool/asterisk
+chmod -R 750 /var/log/asterisk /var/lib/asterisk /var/spool/asterisk
+
+chown -R apache:apache /var/www/html
+chmod -R 755 /var/www/html
+
+# -----------------------------------------------------------------------------
+# Completion
+# -----------------------------------------------------------------------------
+touch /var/lib/vicidial-install/phase_6_complete
+log_success "Stage 06 completed – Vicidial automation & hardening done"
