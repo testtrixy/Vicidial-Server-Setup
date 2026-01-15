@@ -220,3 +220,10 @@ log_info "Asterisk binaries installed (service will be configured in Stage 06)"
 # Completion
 # -----------------------------------------------------------------------------
 log_success "Stage 04 completed – Vicidial telephony stack ready"
+# NOTE:
+# Asterisk systemd service is intentionally NOT installed here.
+# This is handled in Stage 06 (Automation & Hardening).
+
+
+
+
