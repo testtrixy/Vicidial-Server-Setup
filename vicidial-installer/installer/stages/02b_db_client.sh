@@ -3,6 +3,7 @@ set -euo pipefail
 
 source lib/common.sh
 
+# Ensure MariaDB DBI driver exists
 
 STAGE_NAME="Stage_02b"
 stage_begin "${STAGE_NAME}"
@@ -17,6 +18,9 @@ fi
 check_el9
 
 log "Installing lite DB dependencies (telephony node)"
+
+
+
 
 dnf install -y \
   perl \

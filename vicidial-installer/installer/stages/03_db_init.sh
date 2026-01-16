@@ -27,6 +27,12 @@ require_command mysql
 
 log "=== Stage 03: Vicidial DB Initialization (EL9) ==="
 
+
+
+# Ensure MariaDB DBI driver exists
+perl -MDBI -e 'exit 1 unless grep {/MariaDB/} DBI->available_drivers' \
+  || fatal "Perl DBI MariaDB driver missing"
+
 ###############################################################################
 # Guards
 ###############################################################################
@@ -57,6 +63,15 @@ VIC_SCHEMA="${SCHEMA_DIR}/MySQL_VICIDIAL_CREATE_tables.sql"
 ###############################################################################
 # Import ASTERISK Database Schema (Idempotent)
 ###############################################################################
+
+#schema load check
+
+mysql -h 127.0.0.1 -P 3306 \
+  -u "${VICIDIAL_DB_USER}" -p"${VICIDIAL_DB_PASS}" \
+  -e "USE ${VICIDIAL_DB_NAME}" \
+  || fatal "DB credentials invalid or wrong host"
+
+
 
 log "Checking asterisk database schema"
 

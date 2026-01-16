@@ -24,6 +24,20 @@ INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 source "${INSTALLER_ROOT}/lib/common.sh"
 
+
+
+
+# Hard assert OS base completed
+[[ -f /var/lib/vicidial-install/os_base_complete ]] \
+  || fatal "OS base stage not completed"
+
+# Hard assert MySQL forbidden
+rpm -qa | grep -Eq 'mysql|community-mysql' \
+  && fatal "MySQL packages detected — forbidden"
+
+
+
+
 require_root
 require_command dnf
 require_command systemctl
@@ -62,6 +76,11 @@ log "Enabling and starting MariaDB service"
 
 systemctl daemon-reexec || true
 systemctl enable --now mariadb
+
+# Enforce TCP reachability (no socket ambiguity)
+mysql -h 127.0.0.1 -P 3306 -e "SELECT 1" \
+  || fatal "MariaDB not reachable via TCP"
+  
 
 ###############################################################################
 # Apply Vicidial MariaDB Configuration

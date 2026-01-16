@@ -39,6 +39,10 @@ echo "============================================================"
 echo
 echo ">>> Phase 1: Backend / Telephony / Web Validation"
 
+asterisk -rx "core show uptime" >/dev/null 2>&1 \
+  || fatal "Asterisk not running — smoke aborted"
+  
+
 bash "${SCRIPT_DIR}/smoke_vicidial_v2.0_hardened.sh" \
   || { echo "❌ Phase 1 FAILED"; exit 1; }
 

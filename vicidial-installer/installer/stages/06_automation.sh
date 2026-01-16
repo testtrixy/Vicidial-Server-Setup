@@ -143,6 +143,10 @@ EOF
 
 asterisk -rx "manager reload" || true
 
+
+asterisk -rx "manager show settings" | grep -q "Yes" \
+  || fatal "AMI not enabled"
+
 # -----------------------------------------------------------------------------
 # 4. Final permissions
 # -----------------------------------------------------------------------------

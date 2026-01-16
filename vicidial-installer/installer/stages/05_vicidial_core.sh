@@ -15,6 +15,10 @@ require_command perl
 require_command mysql
 require_command systemctl
 
+# Canonical DB access (no sockets, no localhost)
+DB_HOST="127.0.0.1"
+DB_SOCKET=""
+
 STAGE_NAME="Stage_05"
 stage_begin "${STAGE_NAME}"
 
@@ -83,6 +87,9 @@ EOF
 chmod 600 "${ASTGUI_CONF}"
 chown root:root "${ASTGUI_CONF}"
 
+grep -q "VARDB_server => 127.0.0.1" /etc/astguiclient.conf \
+  || fatal "DB host misconfigured in astguiclient.conf"
+
 # -----------------------------------------------------------------------------
 # Install MASTER Vicidial Cron
 # -----------------------------------------------------------------------------
@@ -122,7 +129,7 @@ log_info "Validating cron engine"
 
 log_info "Installing Vicidial cron for role: ${NODE_ROLE}"
 
- ensure_vicidial_cron "${CRON_SRC}"
+ensure_vicidial_cron "${CRON_SRC}"
 
 log_success "Vicidial cron engine installed and validated"
 

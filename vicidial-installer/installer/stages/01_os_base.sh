@@ -226,4 +226,5 @@ log_success "--------------------------------------------------------"
 log_success "------------------ Stage 01 COMPLETED ------------------"
 log_success "--------------------------------------------------------"
 
+touch /var/lib/vicidial-install/os_base_complete
 exit 0

@@ -73,14 +73,17 @@ log_warn()    { _log "WARN"    "$1" "$C_WARN"; }
 log_error()   { _log "ERROR"   "$1" "$C_ERROR"; }
 log_success() { _log "SUCCESS" "$1" "$C_SUCCESS"; }
 
-fatal() {
-  log_error "$1"
-  exit 1
-}
 
 # -----------------------------------------------------------------------------
 # Safety checks
 # -----------------------------------------------------------------------------
+
+fatal() {
+  echo "FATAL: $*" >&2
+  exit 1
+}
+
+
 require_root() {
   [[ $EUID -eq 0 ]] || fatal "Must be run as root"
 }
