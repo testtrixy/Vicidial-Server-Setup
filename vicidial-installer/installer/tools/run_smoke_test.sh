@@ -84,10 +84,12 @@ if [[ "${AUTO_CLEANUP}" == "yes" ]]; then
   echo
   echo ">>> Phase 4: Cleanup (v2.0 hardened)"
 
-  bash "${SCRIPT_DIR}/smoke_cleanup_v2.0_hardened.sh" || {
+  bash "${SCRIPT_DIR}/smoke_vicidial_v1.9.sh" || {
     echo "[WARN] Cleanup encountered issues but pipeline will continue"
   }
 fi
+
+
 
 echo
 echo "============================================================"
