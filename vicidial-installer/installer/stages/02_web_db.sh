@@ -173,3 +173,7 @@ db_preflight
 
 log "Stage 02 completed successfully (EL9-Golden)"
 stage_finish "${STAGE_NAME}"
+
+
+
+
