@@ -1,24 +1,28 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Stage 01 – OS Base
-# Responsibilities:
-#   - OS validation (EL9)
-#   - SELinux disable (config + runtime)
-#   - Base repos
-#   - Dev tools
-#   - Core utilities
-#   - Kernel / limits tuning
-#   - Time sync baseline
+# Stage 01 – OS Base (EL9 HARDENED)
 #
-# NO rendering
-# NO database
-# NO web
+# Responsibilities:
+#   - OS validation (Rocky / Alma EL9 only)
+#   - Hard-block MySQL permanently
+#   - SELinux disable (runtime + config)
+#   - Base repos (CRB, EPEL)
+#   - Dev tools & core utilities
+#   - Kernel / limits tuning (VOIP safe)
+#   - Time sync baseline
+#   - Asterisk system user
+#   - Enforced reboot boundary
+#
+# STRICT STAGE:
+#   - NO database
+#   - NO Asterisk install
+#   - NO SIP / PJSIP
 # =============================================================================
 
 set -euo pipefail
 
 # -----------------------------------------------------------------------------
-# Safety & prerequisites
+# Prerequisites
 # -----------------------------------------------------------------------------
 require_root
 require_command dnf
@@ -29,53 +33,49 @@ log_info "Stage 01: OS base bootstrap started"
 STAGE_NAME="Stage_01"
 stage_begin "${STAGE_NAME}"
 
-
-
 # -----------------------------------------------------------------------------
-# OS validation (EL9 only)
+# OS validation (MUST be first)
 # -----------------------------------------------------------------------------
-
-dnf install -y dnf-plugins-core
-
-dnf config-manager --set-enabled crb || {
-  fatal "ERROR: CRB repository could not be enabled"
-}
-
-dnf install -y epel-release
-
-
-
-if ! grep -qE 'Rocky|Alma' /etc/os-release; then
+if ! grep -Eq 'Rocky|Alma' /etc/os-release; then
   fatal "Unsupported OS. Rocky or Alma Linux EL9 required."
 fi
 
 log_info "OS validation passed (EL9)"
 
 # -----------------------------------------------------------------------------
-# Disable SELinux (effective after reboot)
+# Hard-block MySQL permanently (CRITICAL)
 # -----------------------------------------------------------------------------
-log_info "Disabling SELinux (runtime + config)"
+log_info "Checking for existing MySQL packages"
 
-if command -v setenforce >/dev/null 2>&1; then
-  setenforce 0 || true
+if rpm -qa | grep -Eq 'mysql|community-mysql'; then
+  fatal "MySQL packages already installed — unsupported state"
 fi
 
-sed -i 's/^SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
+log_info "Blocking MySQL at DNF level"
+
+cat >> /etc/dnf/dnf.conf <<'EOF'
+exclude=mysql*
+exclude=community-mysql*
+EOF
 
 # -----------------------------------------------------------------------------
-# Firewall baseline (ports opened in later stages)
+# Enable repositories (single authoritative block)
 # -----------------------------------------------------------------------------
-log_info "Enabling firewalld baseline"
+log_info "Enabling base repositories (CRB + EPEL)"
 
-#systemctl enable firewalld --now
+dnf install -y dnf-plugins-core epel-release
+dnf config-manager --set-enabled crb
+
+# -----------------------------------------------------------------------------
+# Firewall baseline
+# -----------------------------------------------------------------------------
+log_info "Configuring firewalld baseline"
 
 if systemctl list-unit-files | grep -q '^firewalld.service'; then
-  log_info "Enabling firewalld"
   systemctl enable --now firewalld
 else
-  log_warn "firewalld not installed — skipping (expected on minimal images)"
+  log_warn "firewalld not installed — skipping (minimal image)"
 fi
-
 
 # -----------------------------------------------------------------------------
 # System update
@@ -84,16 +84,13 @@ log_info "Updating system packages"
 dnf -y update
 
 # -----------------------------------------------------------------------------
-# Repositories & Development Tools
+# Development tools
 # -----------------------------------------------------------------------------
-log_info "Enabling repositories and development tools"
-
-dnf -y install epel-release
-dnf config-manager --set-enabled crb
+log_info "Installing Development Tools"
 dnf -y groupinstall "Development Tools"
 
 # -----------------------------------------------------------------------------
-# Base utilities & Perl core (Vicidial-ready)
+# Base utilities & Perl core (VICIdial-ready)
 # -----------------------------------------------------------------------------
 log_info "Installing base utilities and Perl core"
 
@@ -106,18 +103,30 @@ dnf -y install \
   perl-interpreter perl-devel perl-CPAN
 
 # -----------------------------------------------------------------------------
+# Disable SELinux (runtime + config)
+# -----------------------------------------------------------------------------
+log_info "Disabling SELinux (runtime + config)"
+
+if command -v setenforce >/dev/null 2>&1; then
+  setenforce 0 || true
+fi
+
+sed -i 's/^SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
+
+# -----------------------------------------------------------------------------
 # Time synchronization
 # -----------------------------------------------------------------------------
-log_info "Configuring time synchronization (chrony)"
+TIMEZONE="${TIMEZONE:-UTC}"
+log_info "Configuring time synchronization (chrony, TZ=${TIMEZONE})"
 
 systemctl enable chronyd --now
-timedatectl set-timezone UTC
+timedatectl set-timezone "${TIMEZONE}"
 
 sleep 5
 chronyc tracking || log_warn "Chrony not yet synchronized"
 
 # -----------------------------------------------------------------------------
-# Kernel & network tuning (VOIP safe defaults)
+# Kernel & network tuning (VOIP-safe defaults)
 # -----------------------------------------------------------------------------
 log_info "Applying kernel and network tuning"
 
@@ -152,7 +161,7 @@ cat >/etc/security/limits.d/vicidial.conf <<EOF
 EOF
 
 # -----------------------------------------------------------------------------
-# Transparent Huge Pages (Asterisk best practice)
+# Disable Transparent Huge Pages (Asterisk best practice)
 # -----------------------------------------------------------------------------
 log_info "Disabling Transparent Huge Pages"
 
@@ -173,21 +182,19 @@ systemctl daemon-reload
 systemctl enable disable-thp --now
 
 # -----------------------------------------------------------------------------
-# Swap verification (cloud safety)
+# Swap verification
 # -----------------------------------------------------------------------------
 log_info "Verifying swap availability"
 
 if ! swapon --show | grep -q '^'; then
-  log_warn "No swap detected. Strongly recommended before heavy DB / dialing load."
+  log_warn "No swap detected. Strongly recommended for DB / dialer load."
 else
   swapon --show
 fi
 
 # -----------------------------------------------------------------------------
-# Completion notice
+# Ensure asterisk system user and group exist
 # -----------------------------------------------------------------------------
-
-
 log_info "Ensuring asterisk system user and group exist"
 
 if ! getent group asterisk >/dev/null; then
@@ -203,17 +210,20 @@ if ! getent passwd asterisk >/dev/null; then
     asterisk
 fi
 
+# -----------------------------------------------------------------------------
+# Enforce reboot boundary
+# -----------------------------------------------------------------------------
+log_warn "Stage 01 completed — system reboot REQUIRED"
 
-
-log_success "--------------------------------------------------------"
-log_success "------------------Stage 01 completed--------------------"
-log_success "--------------------------------------------------------"
-
-
-log_warn "System reboot is REQUIRED before continuing installation"
 mkdir -p /var/lib/vicidial-install
 touch /var/lib/vicidial-install/reboot_required
-log_warn "REBOOT REQUIRED before proceeding to Stage 02 (SELinux & kernel changes)"
-#require_rebooted_if_needed
+
+log_warn "REBOOT REQUIRED before proceeding to Stage 02"
 
 stage_finish "${STAGE_NAME}"
+
+log_success "--------------------------------------------------------"
+log_success "------------------ Stage 01 COMPLETED ------------------"
+log_success "--------------------------------------------------------"
+
+exit 0

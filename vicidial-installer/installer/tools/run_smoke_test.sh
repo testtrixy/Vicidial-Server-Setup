@@ -39,7 +39,7 @@ echo "============================================================"
 echo
 echo ">>> Phase 1: Backend / Telephony / Web Validation"
 
-bash "${SCRIPT_DIR}/smoke_vicidial_v1.9.sh" \
+bash "${SCRIPT_DIR}/smoke_vicidial_v2.0_hardened.sh" \
   || { echo "❌ Phase 1 FAILED"; exit 1; }
 
 # -----------------------------------------------------------------------------
@@ -84,7 +84,7 @@ if [[ "${AUTO_CLEANUP}" == "yes" ]]; then
   echo
   echo ">>> Phase 4: Cleanup (v2.0 hardened)"
 
-  bash "${SCRIPT_DIR}/smoke_vicidial_v1.9.sh" || {
+  bash "${SCRIPT_DIR}/smoke_vicidial_v2.0_hardened.sh" || {
     echo "[WARN] Cleanup encountered issues but pipeline will continue"
   }
 fi
