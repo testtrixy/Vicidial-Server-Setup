@@ -1,0 +1,248 @@
+Excellent call 👍
+This is **exactly** the right moment to pause, reset, and write a **master summary / north-star document**.
+
+Below is a **clean, copy-paste-ready MASTER SUMMARY** you can take to a **new chat** and restart from first principles without losing intent.
+
+---
+
+# 🎯 VICIDIAL NEXT-GEN SCRATCH INSTALLER
+
+**Master Goal & Architecture Summary (2026)**
+
+---
+
+## 1️⃣ PURPOSE (WHY WE ARE DOING THIS)
+
+We are building a **clean, reproducible, production-grade scratch installer** for:
+
+* **Rocky Linux 9**
+* **Asterisk 18 (Vicidial-patched)**
+* **Vicidial Trunk**
+* **Modern Web requirements (HTTPS, WebRTC readiness)**
+* **PE / Enterprise-grade stability**
+
+This installer must:
+
+* Replace legacy ViciBox / ISO installs
+* Be readable, auditable, and maintainable
+* Support clean rebuilds, upgrades, and debugging
+* Avoid tribal knowledge and “magic scripts”
+
+---
+
+## 2️⃣ NON-GOALS (WHAT WE ARE NOT DOING)
+
+We are **NOT**:
+
+* Recreating ViciBox ISO
+* Supporting legacy Asterisk 1.8 / CentOS 6/7
+* Mixing runtime configs with install logic
+* Hardcoding secrets into scripts
+* Building a one-file “hacky” installer
+
+---
+
+## 3️⃣ HIGH-LEVEL OUTCOME (WHAT “DONE” LOOKS LIKE)
+
+At the end of installation:
+
+* `asterisk -rx "core show version"` works
+* Vicidial web UI loads over **HTTPS**
+* AMI users connect securely
+* Dialplan contexts exist
+* Cron jobs are running
+* Healthcheck passes 100%
+* Installer can be rerun safely (idempotent)
+
+---
+
+## 4️⃣ DESIGN PRINCIPLES (THE RULES)
+
+### 🔹 Structure over speed
+
+Clear stages > fast hacks
+
+### 🔹 Idempotency
+
+Every stage:
+
+* Can be re-run
+* Leaves a marker when complete
+
+### 🔹 Separation of concerns
+
+* **Stages** do execution
+* **Templates** generate configs
+* **Lib** contains reusable logic
+* **Config** holds environment & secrets
+
+### 🔹 Patch-first mindset
+
+Vicidial patches are **mandatory**, not optional
+
+---
+
+## 5️⃣ CANONICAL INSTALLER STRUCTURE (FINAL)
+
+```
+vicidial-installer/
+├── install.sh              # Main orchestrator
+├── config/                 # Static configuration
+├── lib/                    # Shared functions
+├── stages/                 # Ordered execution phases
+├── templates/              # Config templates
+├── sql/                    # DB schema files
+├── tools/                  # Debug & verification
+├── health/                 # Post-install validation
+└── README.md
+```
+
+👉 **No script lives outside this structure**
+
+---
+Phase 0 – Installer bootstrap & config
+Phase 1 – OS, repos, security, timezone
+Phase 2 – Web + PHP + MariaDB + tuning
+Phase 3 – Build tools & Perl glue
+Phase 4 – Telephony core (DAHDI → LibPRI → SRTP → Asterisk)
+Phase 5 – Vicidial core (SVN, DB, install.pl)
+Phase 6 – Automation (cron, services, AMI hardening)
+Phase 7 – WebRTC, security, media, codecs
+Phase 8 – Health checks & validation
+
+
+## 6️⃣ PHASED INSTALLATION MODEL (THE GOLDEN PATH)
+
+### Phase 0 – Preflight
+
+* Root check
+* OS check
+* Disable SELinux
+
+### Phase 1 – OS Foundation
+
+* Enable CRB + EPEL
+* Firewall baseline
+* Timezone
+
+### Phase 2 – Web & Database
+
+* Apache + mod_ssl
+* PHP 7.4 (Remi)
+* MariaDB 10.5+
+* my.cnf tuning
+
+### Phase 3 – Build Environment
+
+* Development Tools
+* Perl modules (cpanm)
+* Required headers
+
+### Phase 4 – Telephony Core (ORDER IS CRITICAL)
+
+1. DAHDI (kernel-safe)
+2. LibPRI
+3. Jansson + LibSRTP
+4. Asterisk source
+5. Apply Vicidial patches
+6. Build Asterisk
+7. Install Asterisk
+
+### Phase 5 – Asterisk Configuration
+
+* modules.conf (auto-generated)
+* manager.conf (AMI hardened)
+* SIP/PJSIP base
+
+### Phase 6 – Vicidial Application
+
+* astguiclient install
+* Database bootstrap
+* install.pl execution
+* Permissions
+* Cron jobs
+
+### Phase 7 – Modern Extras
+
+* Certbot (HTTPS)
+* WebRTC readiness
+* Optional security portals
+
+### Phase 8 – Validation
+
+* Healthcheck
+* Summary
+* Reboot recommendation
+
+---
+
+## 7️⃣ WHY TEMPLATES EXIST (CLARITY)
+
+Templates are used **ONLY** to:
+
+* Generate configs from known variables
+* Avoid inline `sed` chaos
+* Keep scripts logic-only
+
+Templates are **not logic**
+Templates are **render targets**
+
+---
+
+## 8️⃣ WHAT MUST BE PRESENT (HARD REQUIREMENTS)
+
+### Telephony
+
+* Vicidial official Asterisk 18 patches
+* DAHDI compatibility with EL9 kernel
+
+### Web
+
+* HTTPS enforced
+* PHP 7.4 only (no PHP 8 yet)
+
+### Security
+
+* AMI bound to localhost
+* No anonymous SIP
+* No world-readable configs
+
+---
+
+## 9️⃣ SUCCESS CRITERIA (GO / NO-GO)
+
+✅ GO if:
+
+* Dialplan contexts exist
+* Agents can log in
+* Calls place & record
+* AMI shows connected users
+
+❌ NO-GO if:
+
+* “No dialplan found”
+* AMI loops or timeouts
+* install.pl partially fails
+* Healthcheck shows red
+
+---
+
+
+Whats Next : 
+
+What I Recommend Next (Optional)
+
+
+You’re basically done, but the natural next steps would be:
+
+1. Stage 06 – Continuous Health Monitor
+    (non-blocking warnings + auto-repair hooks)
+
+2. Role-split cron templates (dialer/db/web)
+    (you’re already 80% there)
+
+3. Documentation artifact
+    (“Why this installer works when others fail”)
+
+
+

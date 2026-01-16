@@ -309,6 +309,87 @@ check_dbi_connection() {
   log "DBI CONNECT OK"
 }
 
+
+
+
+###########################################
+# check cron jobs running or not
+###########################################
+
+
+###############################################################################
+# Vicidial Cron Auto-Repair & Validation
+###############################################################################
+
+ensure_vicidial_cron() {
+  local cron_src="$1"
+  local cron_dst="/etc/cron.d/vicidial"
+
+  [[ -f "${cron_src}" ]] || fatal "Cron template missing: ${cron_src}"
+
+  log_info "Validating Vicidial cron engine"
+
+  # Ensure crond is running
+  systemctl enable --now crond >/dev/null 2>&1
+  systemctl is-active --quiet crond \
+    || fatal "crond service not running"
+
+  # First install
+  if [[ ! -f "${cron_dst}" ]]; then
+    log_warn "Vicidial cron missing – installing fresh copy"
+    install_vicidial_cron "${cron_src}" "${cron_dst}"
+    return 0
+  fi
+
+  # Drift detection (ignore comments & whitespace)
+  if ! diff -q \
+      <(grep -Ev '^\s*(#|$)' "${cron_src}") \
+      <(grep -Ev '^\s*(#|$)' "${cron_dst}") \
+      >/dev/null; then
+
+    log_warn "Vicidial cron drift detected – auto-repairing"
+
+    install_vicidial_cron "${cron_src}" "${cron_dst}"
+
+    # Post-repair validation
+    grep -q "ADMIN_keepalive_ALL.pl" "${cron_dst}" \
+      || fatal "Cron repair failed – keepalive entry missing"
+
+    log_success "Vicidial cron repaired successfully"
+  else
+    log_success "Vicidial cron validated (no drift)"
+  fi
+}
+
+
+
+install_vicidial_cron() {
+  local src="$1"
+  local dst="$2"
+
+  cp -f "${src}" "${dst}"
+  chmod 644 "${dst}"
+  chown root:root "${dst}"
+  restorecon "${dst}" 2>/dev/null || true
+}
+
+
+check_vicidial_cron() {
+  local expected="$1"
+  local actual="/etc/cron.d/vicidial"
+
+  [[ -f "${actual}" ]] || fatal "Vicidial cron missing"
+
+  diff -q "${expected}" "${actual}" >/dev/null \
+    || fatal "Vicidial cron DRIFT detected (do not edit manually)"
+
+  systemctl is-active --quiet crond \
+    || fatal "crond not running"
+
+  log_success "Vicidial cron validated (no drift)"
+}
+
+
 #############################################
 # Composite Preflight (Call This in Stages)
 #############################################
