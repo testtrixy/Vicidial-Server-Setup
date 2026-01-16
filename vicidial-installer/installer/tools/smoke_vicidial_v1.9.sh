@@ -197,6 +197,39 @@ log_info "Validating dialplan"
 asterisk -rx "dialplan show _91NXXNXXXXXX@default" | grep -q Playback \
   || fatal "Loopback dialplan not loaded"
 
+
+# -----------------------------------------------------------------------------
+# Runtime Validation – Engine & Cron
+# -----------------------------------------------------------------------------
+log_info "Validating Vicidial Runtime Engine"
+
+CRON_FILE="/etc/cron.d/vicidial"
+
+# --- Cron file existence ---
+[[ -f "${CRON_FILE}" ]] \
+  || fatal "Vicidial master crontab missing (${CRON_FILE})"
+
+# --- Heartbeat verification ---
+grep -q "ADMIN_keepalive_ALL.pl" "${CRON_FILE}" \
+  || fatal "Crontab missing keepalive entry"
+
+grep -q "AST_VDhopper.pl" "${CRON_FILE}" \
+  || fatal "Crontab missing hopper entry"
+
+# --- Cron daemon ---
+systemctl is-active --quiet crond \
+  || fatal "crond not running (Vicidial engine dead)"
+
+log_success "Cron Engine: Installed & Active"
+
+# --- Screen validation ---
+if screen -ls | grep -q ASTVDhopper; then
+  log_success "Background Engine: Hopper active"
+else
+  log_warn "Hopper screen not visible yet (cron may need 60s)"
+fi
+
+
 # -----------------------------------------------------------------------------
 # 7.5 Web Server Validation  ✅ (YOUR REQUEST)
 # -----------------------------------------------------------------------------
