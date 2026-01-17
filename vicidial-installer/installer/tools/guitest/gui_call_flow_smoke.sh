@@ -182,6 +182,12 @@ sleep 2
 #CHANNEL_COUNT="$(timeout 5 asterisk -rx "core show channels" | grep -c Local || true)"
 CHANNEL_COUNT="$(asterisk -rx "core show channels concise" | grep -c 'Local/' || true)"
 
+for i in {1..5}; do
+  CHANNEL_COUNT="$(asterisk -rx "core show channels concise" | grep -c 'Local/' || true)"
+  [[ "${CHANNEL_COUNT}" -gt 0 ]] && break
+  sleep 1
+done
+
 
 if [[ "${CHANNEL_COUNT}" -eq 0 ]]; then
   fatal "GUI call flow FAILED (no Asterisk channel detected)"
