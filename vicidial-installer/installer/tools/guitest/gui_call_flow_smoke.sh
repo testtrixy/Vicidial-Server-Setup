@@ -42,6 +42,23 @@ fi
 
 log_info "=== GUI CALL FLOW SMOKE TEST START ==="
 
+
+
+
+
+
+
+log_info "Ensuring pjsip_smoketest.conf is included (top-level)"
+
+PJSIP_CONF="/etc/asterisk/pjsip.conf"
+
+# Remove any bad includes first (cleanup)
+sed -i '/pjsip_smoketest.conf/d' "${PJSIP_CONF}"
+
+# Insert include at top-level (before any [section])
+sed -i '1i#include pjsip_smoketest.conf' "${PJSIP_CONF}"
+
+
 # -----------------------------------------------------------------------------
 # Load VICIdial DB credentials (ROBUST PARSER)
 # -----------------------------------------------------------------------------
@@ -201,9 +218,15 @@ EOF
 
 
 
+
+
 log_info "Ensuring pjsip_smoketest.conf is included"
 
 PJSIP_CONF="/etc/asterisk/pjsip.conf"
+
+asterisk -rx "core reload"
+sleep 2
+
 
 grep -q '^#include pjsip_smoketest.conf' "${PJSIP_CONF}" || \
   echo '#include pjsip_smoketest.conf' >> "${PJSIP_CONF}"
@@ -212,18 +235,19 @@ grep -q '^#include pjsip_smoketest.conf' "${PJSIP_CONF}" || \
 asterisk -rx "pjsip reload"
 sleep 1
 
-asterisk -rx "pjsip show endpoints" | grep -q '^Endpoint: 9999' \
+
+
+
+
+asterisk -rx "pjsip show endpoints" | grep -Eq 'Endpoint:\s+9999' \
   || fatal "PJSIP endpoint 9999 not loaded"
-
-
-
 
 
 #timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial application Hangup"
 timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial-auto application Hangup"
 
  
- 
+
 
 sleep 2
 
