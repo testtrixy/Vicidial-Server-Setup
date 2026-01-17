@@ -54,11 +54,30 @@ log_info "=== GUI CALL FLOW SMOKE TEST START ==="
 ASTGUI_CONF="/etc/astguiclient.conf"
 [[ -f "${ASTGUI_CONF}" ]] || fatal "Missing ${ASTGUI_CONF}"
 
-DB_HOST="$(grep '^VARDB_server=' "${ASTGUI_CONF}" | cut -d= -f2)"
-DB_NAME="$(grep '^VARDB_database=' "${ASTGUI_CONF}" | cut -d= -f2)"
-DB_USER="$(grep '^VARDB_user=' "${ASTGUI_CONF}" | cut -d= -f2)"
-DB_PASS="$(grep '^VARDB_pass=' "${ASTGUI_CONF}" | cut -d= -f2)"
-DB_PORT="$(grep '^VARDB_port=' "${ASTGUI_CONF}" | cut -d= -f2)"
+
+parse_cfg () {
+  awk -F'=>|=' -v key="$1" '
+    $1 ~ key {
+      gsub(/^[ \t]+|[ \t]+$/, "", $2);
+      print $2;
+      exit
+    }
+  ' "${ASTGUI_CONF}"
+}
+
+DB_HOST="$(parse_cfg VARDB_server)"
+DB_NAME="$(parse_cfg VARDB_database)"
+DB_USER="$(parse_cfg VARDB_user)"
+DB_PASS="$(parse_cfg VARDB_pass)"
+DB_PORT="$(parse_cfg VARDB_port)"
+
+: "${DB_HOST:?Missing DB_HOST}"
+: "${DB_NAME:?Missing DB_NAME}"
+: "${DB_USER:?Missing DB_USER}"
+: "${DB_PASS:?Missing DB_PASS}"
+: "${DB_PORT:=3306}"
+
+
 
 [[ -n "${DB_HOST}" && -n "${DB_USER}" && -n "${DB_PASS}" ]] \
   || fatal "Invalid DB credentials in ${ASTGUI_CONF}"
