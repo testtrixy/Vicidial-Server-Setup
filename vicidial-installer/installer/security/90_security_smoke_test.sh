@@ -110,6 +110,12 @@ else
   log_warn "SSH IP not detected or not whitelisted"
 fi
 
+
+log_info "Checking SIP rate-limiting rules"
+
+firewall-cmd --list-rich-rules | grep -q "5060" \
+  || log_warn "SIP rate-limiting rule not detected"
+  
 # -----------------------------------------------------------------------------
 # Completion
 # -----------------------------------------------------------------------------

@@ -57,6 +57,33 @@ cp -f "${INSTALLER_ROOT}/security/files/fail2ban/jail.local" \
 
 log_success "Fail2Ban configuration deployed"
 
+
+
+# -----------------------------------------------------------------------------
+# Auto-whitelist current SSH IP (dynamic-safe)
+# -----------------------------------------------------------------------------
+
+log_info "Attempting to auto-whitelist current SSH IP"
+
+SSH_IP="$(who am i | awk '{print $5}' | tr -d '()' || true)"
+
+if [[ -n "${SSH_IP}" ]]; then
+  if grep -q "ignoreip" /etc/fail2ban/jail.local; then
+    if ! grep -q "${SSH_IP}" /etc/fail2ban/jail.local; then
+      sed -i "s/^ignoreip.*/& ${SSH_IP}/" /etc/fail2ban/jail.local
+      log_success "SSH IP ${SSH_IP} added to Fail2Ban whitelist"
+    else
+      log_info "SSH IP ${SSH_IP} already whitelisted"
+    fi
+  else
+    echo "ignoreip = 127.0.0.1/8 ::1 ${SSH_IP}" >> /etc/fail2ban/jail.local
+    log_success "SSH IP ${SSH_IP} added to new ignoreip directive"
+  fi
+else
+  log_warn "Unable to detect SSH IP (non-fatal)"
+fi
+
+
 # -----------------------------------------------------------------------------
 # Restart Fail2Ban
 # -----------------------------------------------------------------------------

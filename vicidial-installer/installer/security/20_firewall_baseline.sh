@@ -108,6 +108,34 @@ firewall-cmd --list-all --zone="${DEFAULT_ZONE}"
 
 log_success "Firewall baseline applied successfully"
 
+
+#-----------
+# firewalld rich rule (UDP SIP)
+#-------------------------------
+
+
+log_info "Applying SIP rate-limiting (UDP 5060–5061)"
+
+firewall-cmd --permanent --add-rich-rule='
+rule family="ipv4"
+port port="5060-5061" protocol="udp"
+limit value="25/s" burst="50"
+accept'
+
+# tcop
+
+firewall-cmd --permanent --add-rich-rule='
+rule family="ipv4"
+port port="5060-5061" protocol="tcp"
+limit value="10/s" burst="20"
+accept'
+
+# reload 
+
+firewall-cmd --reload
+log_success "SIP rate-limiting rules applied"
+
+
 # -----------------------------------------------------------------------------
 # Completion
 # -----------------------------------------------------------------------------
@@ -135,3 +163,5 @@ stage_finish "${STAGE_NAME}"
 # firewall-cmd --list-ports
 # Expected:
 #5060/udp 5060/tcp 5061/udp 5061/tcp 10000-20000/udp
+
+#ss -lntp | grep 5038  ==> 127.0.0.1
