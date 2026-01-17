@@ -179,7 +179,9 @@ sleep 2
 # -----------------------------------------------------------------------------
 # Assert: channel exists
 # -----------------------------------------------------------------------------
-CHANNEL_COUNT="$(timeout 5 asterisk -rx "core show channels" | grep -c Local || true)"
+#CHANNEL_COUNT="$(timeout 5 asterisk -rx "core show channels" | grep -c Local || true)"
+CHANNEL_COUNT="$(asterisk -rx "core show channels concise" | grep -c 'Local/' || true)"
+
 
 if [[ "${CHANNEL_COUNT}" -eq 0 ]]; then
   fatal "GUI call flow FAILED (no Asterisk channel detected)"
