@@ -248,7 +248,6 @@ timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial-auto appl
 
  
 
-
 sleep 2
 
 # -----------------------------------------------------------------------------
