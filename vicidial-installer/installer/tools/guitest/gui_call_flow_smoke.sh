@@ -199,6 +199,16 @@ type=aor
 max_contacts=1
 EOF
 
+
+
+log_info "Ensuring pjsip_smoketest.conf is included"
+
+PJSIP_CONF="/etc/asterisk/pjsip.conf"
+
+grep -q '^#include pjsip_smoketest.conf' "${PJSIP_CONF}" || \
+  echo '#include pjsip_smoketest.conf' >> "${PJSIP_CONF}"
+
+
 asterisk -rx "pjsip reload"
 sleep 1
 
@@ -212,7 +222,8 @@ asterisk -rx "pjsip show endpoints" | grep -q '^Endpoint: 9999' \
 #timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial application Hangup"
 timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial-auto application Hangup"
 
-
+ 
+ 
 
 sleep 2
 
