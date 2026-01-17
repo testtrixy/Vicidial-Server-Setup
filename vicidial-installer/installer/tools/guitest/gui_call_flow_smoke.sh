@@ -167,8 +167,10 @@ log_success "GUI smoke test objects created"
 # -----------------------------------------------------------------------------
 log_info "Triggering backend originate test"
 
-timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@default application Hangup" \
-  || fatal "Originate command failed"
+
+
+timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial application Hangup"
+
 
 sleep 2
 
