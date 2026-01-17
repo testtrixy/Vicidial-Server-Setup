@@ -147,6 +147,10 @@ asterisk -rx "manager reload" || true
 asterisk -rx "manager show settings" | grep -q "Yes" \
   || fatal "AMI not enabled"
 
+
+  asterisk -rx "sip show peers" >/dev/null 2>&1 \
+  || fatal "SIP runtime unavailable"
+
 # -----------------------------------------------------------------------------
 # 4. Final permissions
 # -----------------------------------------------------------------------------
@@ -157,6 +161,46 @@ chmod -R 750 /var/log/asterisk /var/lib/asterisk /var/spool/asterisk
 
 chown -R apache:apache /var/www/html
 chmod -R 755 /var/www/html
+
+
+
+
+###############################################################################
+# Security: Firewall Baseline (EL9 nftables)
+###############################################################################
+
+log_info "Applying firewall baseline (security/20)"
+
+SECURITY_FW="${INSTALLER_ROOT}/security/20_firewall_baseline.sh"
+[[ -x "${SECURITY_FW}" ]] || fatal "Missing ${SECURITY_FW}"
+
+bash "${SECURITY_FW}"
+
+###############################################################################
+# Security: Fail2Ban for Asterisk (PJSIP aware)
+###############################################################################
+
+log_info "Applying Fail2Ban protection (security/30)"
+
+SECURITY_F2B="${INSTALLER_ROOT}/security/30_fail2ban_asterisk.sh"
+[[ -x "${SECURITY_F2B}" ]] || fatal "Missing ${SECURITY_F2B}"
+
+bash "${SECURITY_F2B}"
+
+
+###############################################################################
+# Security: Log Rotation
+###############################################################################
+
+log_info "Installing Asterisk log rotation (security/40)"
+
+SECURITY_LOGROTATE="${INSTALLER_ROOT}/security/40_logrotate.sh"
+[[ -x "${SECURITY_LOGROTATE}" ]] || fatal "Missing ${SECURITY_LOGROTATE}"
+
+bash "${SECURITY_LOGROTATE}"
+
+
+
 
 # -----------------------------------------------------------------------------
 # Completion

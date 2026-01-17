@@ -81,6 +81,33 @@ else
   echo ">>> Phase 3: Selenium skipped (ENABLE_SELENIUM=no)"
 fi
 
+
+
+
+
+
+#------------------------------------
+# Run Fail2Ban test
+#----------------------------------
+
+###############################################################################
+# Phase X: Security Smoke Test (Fail2Ban / Firewall / Logs)
+###############################################################################
+
+echo
+echo ">>> Phase X: Security Smoke Test"
+
+SECURITY_SMOKE="${INSTALLER_ROOT}/security/security_smoke_test.sh"
+
+if [[ ! -x "${SECURITY_SMOKE}" ]]; then
+  echo "ERROR: Missing security smoke test: ${SECURITY_SMOKE}"
+  exit 1
+fi
+
+bash "${SECURITY_SMOKE}"
+
+
+
 # -----------------------------------------------------------------------------
 # Phase 4: Cleanup
 # -----------------------------------------------------------------------------
