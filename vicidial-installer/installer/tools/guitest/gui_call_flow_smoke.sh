@@ -8,7 +8,7 @@
 #   - Verify Asterisk receives a live channel
 #
 # Non-Goals:
-#   - No audio quality testing
+#   - No audio testing
 #   - No Selenium / browser automation
 #   - No trunks required
 #
@@ -19,12 +19,6 @@
 # =============================================================================
 
 set -euo pipefail
-
-
-
-
-
-
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -49,11 +43,10 @@ fi
 log_info "=== GUI CALL FLOW SMOKE TEST START ==="
 
 # -----------------------------------------------------------------------------
-# Load VICIdial DB credentials (AUTHORITATIVE)
+# Load VICIdial DB credentials (ROBUST PARSER)
 # -----------------------------------------------------------------------------
 ASTGUI_CONF="/etc/astguiclient.conf"
 [[ -f "${ASTGUI_CONF}" ]] || fatal "Missing ${ASTGUI_CONF}"
-
 
 parse_cfg () {
   awk -F'=>|=' -v key="$1" '
@@ -77,13 +70,6 @@ DB_PORT="$(parse_cfg VARDB_port)"
 : "${DB_PASS:?Missing DB_PASS}"
 : "${DB_PORT:=3306}"
 
-
-
-[[ -n "${DB_HOST}" && -n "${DB_USER}" && -n "${DB_PASS}" ]] \
-  || fatal "Invalid DB credentials in ${ASTGUI_CONF}"
-
-
-
 MYSQL_CMD=(
   mysql
   --protocol=tcp
@@ -97,21 +83,21 @@ MYSQL_CMD=(
   "${DB_NAME}"
 )
 
-
 log_info "Using DB ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 
 # -----------------------------------------------------------------------------
-# Preflight: AMI must be alive
+# Preflight: AMI must be alive (NON-BLOCKING)
 # -----------------------------------------------------------------------------
-asterisk -rx "manager show settings" | grep -q "Manager (AMI):.*Yes" \
-  || fatal "AMI not enabled"
+timeout 5 asterisk -rx "manager show settings" \
+  | grep -q "Manager (AMI):.*Yes" \
+  || fatal "AMI not responding"
 
 # -----------------------------------------------------------------------------
 # Detect SIP stack
 # -----------------------------------------------------------------------------
-if asterisk -rx "sip show peers" >/dev/null 2>&1; then
+if timeout 5 asterisk -rx "sip show peers" >/dev/null 2>&1; then
   SIP_MODE="SIP"
-elif asterisk -rx "pjsip show endpoints" >/dev/null 2>&1; then
+elif timeout 5 asterisk -rx "pjsip show endpoints" >/dev/null 2>&1; then
   SIP_MODE="PJSIP"
 else
   fatal "No SIP stack available (chan_sip or pjsip)"
@@ -130,9 +116,8 @@ TEST_LEAD_PHONE="1000000000"
 TEST_EXTEN="9999"
 
 # -----------------------------------------------------------------------------
-# Create minimal VICIdial objects (IDEMPOTENT)
+# Create minimal VICIdial objects (IDEMPOTENT, NO LEAKS)
 # -----------------------------------------------------------------------------
-
 log_info "Creating GUI smoke test objects"
 
 "${MYSQL_CMD[@]}" -e "
@@ -163,13 +148,17 @@ INSERT IGNORE INTO vicidial_list
 (list_id, phone_number, status)
 VALUES ('${TEST_LIST}','${TEST_LEAD_PHONE}','NEW');
 
+-- Bind phone to agent
 UPDATE vicidial_users
-SET campaign_id='${TEST_CAMPAIGN}',
-    phone_login='${TEST_PHONE}',
+SET phone_login='${TEST_PHONE}',
     phone_pass='${TEST_PHONE}'
 WHERE user='${TEST_AGENT}';
-"
 
+-- Assign agent to campaign (SCHEMA-SAFE)
+INSERT IGNORE INTO vicidial_campaign_agents
+(campaign_id, user)
+VALUES ('${TEST_CAMPAIGN}','${TEST_AGENT}');
+"
 
 log_success "GUI smoke test objects created"
 
@@ -178,7 +167,7 @@ log_success "GUI smoke test objects created"
 # -----------------------------------------------------------------------------
 log_info "Triggering backend originate test"
 
-asterisk -rx "channel originate Local/${TEST_EXTEN}@default application Hangup" \
+timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@default application Hangup" \
   || fatal "Originate command failed"
 
 sleep 2
@@ -186,7 +175,7 @@ sleep 2
 # -----------------------------------------------------------------------------
 # Assert: channel exists
 # -----------------------------------------------------------------------------
-CHANNEL_COUNT="$(asterisk -rx "core show channels" | grep -c Local || true)"
+CHANNEL_COUNT="$(timeout 5 asterisk -rx "core show channels" | grep -c Local || true)"
 
 if [[ "${CHANNEL_COUNT}" -eq 0 ]]; then
   fatal "GUI call flow FAILED (no Asterisk channel detected)"
