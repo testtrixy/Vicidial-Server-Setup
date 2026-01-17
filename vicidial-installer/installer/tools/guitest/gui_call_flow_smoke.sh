@@ -169,7 +169,9 @@ log_info "Triggering backend originate test"
 
 
 
-timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial application Hangup"
+#timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial application Hangup"
+timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial-auto application Hangup"
+
 
 
 sleep 2
