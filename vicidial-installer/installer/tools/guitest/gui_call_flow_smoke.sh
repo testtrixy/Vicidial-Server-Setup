@@ -25,7 +25,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 source "${INSTALLER_ROOT}/lib/common.sh"
 
