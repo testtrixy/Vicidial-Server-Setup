@@ -169,6 +169,40 @@ log_info "Triggering backend originate test"
 
 
 
+
+log_info "Ensuring test PJSIP endpoint exists"
+
+cat >/etc/asterisk/pjsip_smoketest.conf <<EOF
+[9999]
+type=endpoint
+context=vicidial-auto
+disallow=all
+allow=ulaw
+auth=9999-auth
+aors=9999
+
+[9999-auth]
+type=auth
+auth_type=userpass
+username=9999
+password=9999
+
+[9999]
+type=aor
+max_contacts=1
+EOF
+
+
+asterisk -rx "pjsip reload"
+sleep 1
+
+asterisk -rx "pjsip show endpoints" | grep -q '^Endpoint: 9999' \
+  || fatal "PJSIP endpoint 9999 not loaded"
+
+
+
+
+
 #timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial application Hangup"
 timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial-auto application Hangup"
 
