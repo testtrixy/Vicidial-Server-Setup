@@ -61,6 +61,7 @@ log_info "Detected MariaDB socket: ${DB_SOCKET}"
 # -----------------------------------------------------------------------------
 # Generate astguiclient.conf
 # -----------------------------------------------------------------------------
+
 ASTGUI_CONF="/etc/astguiclient.conf"
 log_info "Generating ${ASTGUI_CONF}"
 
@@ -87,8 +88,29 @@ EOF
 chmod 600 "${ASTGUI_CONF}"
 chown root:root "${ASTGUI_CONF}"
 
+
 grep -q "VARDB_server => 127.0.0.1" /etc/astguiclient.conf \
   || fatal "DB host misconfigured in astguiclient.conf"
+
+
+
+# -----------------------------------------------------------------------------
+# Stage 05.6 – VICIdial Asterisk 18 Compatibility (AMI regex)
+# -----------------------------------------------------------------------------
+
+log_info "Applying VICIdial Asterisk 18 compatibility patch (AMI regex)"
+
+for f in \
+  /usr/share/astguiclient/AST_update.pl \
+  /usr/share/astguiclient/AST_manager_send.pl
+do
+  [[ -f "$f" ]] || fatal "Missing VICIdial script: $f"
+  perl -pi -e 's/\[0123\]/[0-9]/g' "$f"
+done
+
+log_success "VICIdial AMI regex compatibility patch applied"
+
+
 
 # -----------------------------------------------------------------------------
 # Install MASTER Vicidial Cron
@@ -140,8 +162,54 @@ mkdir -p /var/log/astguiclient
 chown -R "${VICIDIAL_AST_USER}:${VICIDIAL_AST_GROUP}" /var/log/astguiclient
 chmod -R 755 /var/log/astguiclient
 
+
 # -----------------------------------------------------------------------------
-# Completion
+# Stage 05.7 – VICIdial AMI Listener (systemd)
 # -----------------------------------------------------------------------------
+log_info "Installing VICIdial AMI listener systemd service"
+
+cat >/etc/systemd/system/vicidial-ami-listener.service <<'EOF'
+[Unit]
+Description=VICIdial AMI Listener
+After=asterisk.service mariadb.service network.target
+Requires=asterisk.service
+
+[Service]
+Type=simple
+User=asterisk
+Group=asterisk
+ExecStart=/usr/share/astguiclient/AST_manager_listen.pl
+Restart=always
+RestartSec=5
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now vicidial-ami-listener
+
+log_success "VICIdial AMI listener enabled and started"
+
+
+
+
+
+# -----------------------------------------------------------------------------
+# Stage 05.8 – Verify AMI Listener Health
+# -----------------------------------------------------------------------------
+log_info "Verifying VICIdial AMI listener health"
+
+if ! systemctl is-active --quiet vicidial-ami-listener; then
+  fatal "VICIdial AMI listener is not running"
+fi
+
+log_success "VICIdial AMI listener verified healthy"
+
+
+#
+#
+
 log_success "Stage 05 completed – Vicidial Core & Cron Engine active"
 stage_finish "${STAGE_NAME}"
