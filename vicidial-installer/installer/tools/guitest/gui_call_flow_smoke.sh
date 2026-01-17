@@ -88,9 +88,16 @@ log_info "Using DB ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 # -----------------------------------------------------------------------------
 # Preflight: AMI must be alive (NON-BLOCKING)
 # -----------------------------------------------------------------------------
-timeout 5 asterisk -rx "manager show settings" \
-  | grep -q "Manager (AMI):.*Yes" \
-  || fatal "AMI not responding"
+
+
+log_info "Verifying AMI responsiveness"
+
+if ! timeout 5 asterisk -rx "manager show connected" >/dev/null 2>&1; then
+  fatal "AMI socket not responding (manager show connected failed)"
+fi
+
+log_success "AMI responsive"
+
 
 # -----------------------------------------------------------------------------
 # Detect SIP stack
@@ -191,7 +198,6 @@ password=9999
 type=aor
 max_contacts=1
 EOF
-
 
 asterisk -rx "pjsip reload"
 sleep 1
