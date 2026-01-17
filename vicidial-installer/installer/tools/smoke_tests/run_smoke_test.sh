@@ -97,7 +97,7 @@ fi
 echo
 echo ">>> Phase X: Security Smoke Test"
 
-SECURITY_SMOKE="${INSTALLER_ROOT}/security/security_smoke_test.sh"
+SECURITY_SMOKE="${INSTALLER_ROOT}/security/90_security_smoke_test.sh"
 
 if [[ ! -x "${SECURITY_SMOKE}" ]]; then
   echo "ERROR: Missing security smoke test: ${SECURITY_SMOKE}"
