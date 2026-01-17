@@ -113,10 +113,10 @@ TEST_EXTEN="9999"
 # -----------------------------------------------------------------------------
 # Create minimal VICIdial objects (IDEMPOTENT)
 # -----------------------------------------------------------------------------
+
 log_info "Creating GUI smoke test objects"
 
-"${MYSQL_CMD[@]} -e" <<EOF
-
+"${MYSQL_CMD[@]}" -e "
 SET SESSION wait_timeout=5;
 SET SESSION lock_wait_timeout=5;
 
@@ -149,8 +149,8 @@ SET campaign_id='${TEST_CAMPAIGN}',
     phone_login='${TEST_PHONE}',
     phone_pass='${TEST_PHONE}'
 WHERE user='${TEST_AGENT}';
+"
 
-EOF
 
 log_success "GUI smoke test objects created"
 
