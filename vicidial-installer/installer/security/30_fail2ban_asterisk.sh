@@ -9,14 +9,9 @@ set -euo pipefail
 #   - Match modern Asterisk PJSIP log formats
 #   - Enforce bans at nftables level (EL9 native)
 #
-# Fixes:
-#   - Regex matches IP:PORT (PJSIP)
-#   - Uses systemd journal OR log file
-#   - Prevents false negatives
-#
 # Safe:
 #   - Idempotent
-#   - No service restarts for Asterisk
+#   - No Asterisk restart
 #   - No lockout unless threshold exceeded
 ###############################################################################
 
@@ -27,15 +22,15 @@ source "${INSTALLER_ROOT}/lib/common.sh"
 
 require_root
 require_command dnf
-require_command fail2ban-client
 require_command systemctl
+require_command fail2ban-client
 
 check_el9
 
 STAGE_NAME="Stage_30_Fail2Ban_Asterisk"
 stage_begin "${STAGE_NAME}"
 
-log_info "=== Stage 30: Fail2Ban Asterisk / PJSIP ==="
+log_info "=== Stage 30: Fail2Ban for Asterisk / PJSIP ==="
 
 # -----------------------------------------------------------------------------
 # Install Fail2Ban
@@ -43,67 +38,27 @@ log_info "=== Stage 30: Fail2Ban Asterisk / PJSIP ==="
 log_info "Installing Fail2Ban"
 
 dnf install -y fail2ban >/dev/null
-
 systemctl enable --now fail2ban
 
 log_success "Fail2Ban installed and running"
 
 # -----------------------------------------------------------------------------
-# Asterisk filter (PJSIP + SIP)
+# Deploy known-good configs
 # -----------------------------------------------------------------------------
-log_info "Installing Fail2Ban Asterisk filter"
+log_info "Deploying Fail2Ban filter and jail"
 
-cat >/etc/fail2ban/filter.d/asterisk.conf <<'EOF'
-[Definition]
+mkdir -p /etc/fail2ban/filter.d
 
-# PJSIP REGISTER failures (modern format)
-failregex = ^.*NOTICE.*Request 'REGISTER' from '.*' failed for '<HOST>:\d+' .*Failed to authenticate
-            ^.*NOTICE.*Request 'REGISTER' from '.*' failed for '<HOST>:\d+' .*No matching endpoint found
-            ^.*NOTICE.*Request 'REGISTER' from '.*' failed for '<HOST>:\d+' .*after .* tries.*
+cp -f "${INSTALLER_ROOT}/security/files/fail2ban/filter.d/asterisk.conf" \
+      /etc/fail2ban/filter.d/asterisk.conf
 
-# chan_sip failures (legacy)
-            ^.*NOTICE.*Registration from '.*' failed for '<HOST>:\d+'.*
-            ^.*WARNING.*Illegal password for .* from <HOST>
-            ^.*NOTICE.*Failed to authenticate user .* from <HOST>
+cp -f "${INSTALLER_ROOT}/security/files/fail2ban/jail.local" \
+      /etc/fail2ban/jail.local
 
-ignoreregex =
-EOF
-
-log_success "Fail2Ban filter installed"
+log_success "Fail2Ban configuration deployed"
 
 # -----------------------------------------------------------------------------
-# Jail configuration (EL9 / nftables)
-# -----------------------------------------------------------------------------
-log_info "Installing Fail2Ban jail"
-
-cat >/etc/fail2ban/jail.d/asterisk.local <<'EOF'
-[asterisk]
-enabled  = true
-filter   = asterisk
-
-# SIP + PJSIP ports
-port     = 5060,5061
-
-# Use systemd journal (EL9 default)
-backend  = systemd
-journalmatch = _SYSTEMD_UNIT=asterisk.service
-
-# Ban policy
-maxretry = 3
-findtime = 120
-bantime  = 24h
-
-# Enforce bans at kernel level
-banaction = nftables-multiport
-
-# Prevent self-lockout
-ignoreip = 127.0.0.1/8 ::1
-EOF
-
-log_success "Fail2Ban jail installed"
-
-# -----------------------------------------------------------------------------
-# Restart Fail2Ban cleanly
+# Restart Fail2Ban
 # -----------------------------------------------------------------------------
 log_info "Restarting Fail2Ban"
 
@@ -113,22 +68,18 @@ sleep 2
 # -----------------------------------------------------------------------------
 # Validation
 # -----------------------------------------------------------------------------
-log_info "Validating Fail2Ban status"
+log_info "Validating Asterisk Fail2Ban jail"
 
 fail2ban-client status asterisk >/dev/null \
-  || fatal "Fail2Ban jail 'asterisk' not active"
+  || fatal "Fail2Ban jail 'asterisk' is NOT active"
 
 log_success "Fail2Ban Asterisk jail active"
 
 # -----------------------------------------------------------------------------
 # Completion
 # -----------------------------------------------------------------------------
-log_success "Stage 30 completed – SIP brute-force protection active"
+log_success "Stage 30 completed – SIP brute-force protection enabled"
 stage_finish "${STAGE_NAME}"
-
-
-
-
 
 
 
@@ -143,3 +94,27 @@ stage_finish "${STAGE_NAME}"
 #  fail2ban-regex \
 #  /var/log/asterisk/messages \
 #  /etc/fail2ban/filter.d/asterisk.conf
+
+
+
+
+
+
+###############################################################################
+# Stage 30 – Fail2Ban for Asterisk / PJSIP (EL9 – Golden)
+#
+# Purpose:
+#   - Stop SIP/PJSIP brute-force attacks
+#   - Match modern Asterisk PJSIP log formats
+#   - Enforce bans at nftables level (EL9 native)
+#
+# Fixes:
+#   - Regex matches IP:PORT (PJSIP)
+#   - Uses systemd journal OR log file
+#   - Prevents false negatives
+#
+# Safe:
+#   - Idempotent
+#   - No service restarts for Asterisk
+#   - No lockout unless threshold exceeded
+###############################################################################

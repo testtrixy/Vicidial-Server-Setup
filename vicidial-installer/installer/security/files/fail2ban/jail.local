@@ -1,0 +1,15 @@
+
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1
+bantime  = 24h
+findtime = 10m
+maxretry = 3
+banaction = nftables-multiport
+banaction_allports = nftables-allports
+
+[asterisk]
+enabled  = true
+filter   = asterisk
+port     = 5060,5061
+logpath  = /var/log/asterisk/messages
+backend  = polling
