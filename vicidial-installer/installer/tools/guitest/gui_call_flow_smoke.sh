@@ -117,6 +117,9 @@ log_info "Creating GUI smoke test objects"
 
 "${MYSQL_CMD[@]} -e" <<EOF
 
+SET SESSION wait_timeout=5;
+SET SESSION lock_wait_timeout=5;
+
 INSERT IGNORE INTO servers
 (server_ip, server_description, active)
 VALUES ('127.0.0.1','GUI Smoke Test Server','Y');
