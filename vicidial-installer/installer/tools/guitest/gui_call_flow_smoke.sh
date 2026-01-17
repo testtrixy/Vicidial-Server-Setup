@@ -20,6 +20,12 @@
 
 set -euo pipefail
 
+
+
+
+
+
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
@@ -57,7 +63,21 @@ DB_PORT="$(grep '^VARDB_port=' "${ASTGUI_CONF}" | cut -d= -f2)"
 [[ -n "${DB_HOST}" && -n "${DB_USER}" && -n "${DB_PASS}" ]] \
   || fatal "Invalid DB credentials in ${ASTGUI_CONF}"
 
-MYSQL_CMD=(mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "-p${DB_PASS}" "${DB_NAME}")
+
+
+MYSQL_CMD=(
+  mysql
+  --protocol=tcp
+  --connect-timeout=5
+  --batch
+  --skip-column-names
+  -h "${DB_HOST}"
+  -P "${DB_PORT}"
+  -u "${DB_USER}"
+  "-p${DB_PASS}"
+  "${DB_NAME}"
+)
+
 
 log_info "Using DB ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 
@@ -95,7 +115,7 @@ TEST_EXTEN="9999"
 # -----------------------------------------------------------------------------
 log_info "Creating GUI smoke test objects"
 
-"${MYSQL_CMD[@]}" <<EOF
+"${MYSQL_CMD[@]} -e" <<EOF
 
 INSERT IGNORE INTO servers
 (server_ip, server_description, active)
