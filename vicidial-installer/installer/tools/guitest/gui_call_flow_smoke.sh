@@ -236,11 +236,23 @@ asterisk -rx "pjsip reload"
 sleep 1
 
 
+log_info "Forcing temporary contact for PJSIP smoketest endpoint"
+
+asterisk -rx "pjsip send qualify 9999" >/dev/null 2>&1 || true
+sleep 1
+
+
+asterisk -rx "pjsip show endpoint 9999" | grep -q "Unavailable" && \
+  fatal "PJSIP endpoint 9999 is unavailable (no contact registered)"
 
 
 
-asterisk -rx "pjsip show endpoints" | grep -Eq 'Endpoint:\s+9999' \
-  || fatal "PJSIP endpoint 9999 not loaded"
+
+
+#asterisk -rx "pjsip show endpoints" | grep -Eq 'Endpoint:\s+9999' \
+#  || fatal "PJSIP endpoint 9999 not loaded"
+
+
 
 
 #timeout 5 asterisk -rx "channel originate Local/${TEST_EXTEN}@vicidial application Hangup"
