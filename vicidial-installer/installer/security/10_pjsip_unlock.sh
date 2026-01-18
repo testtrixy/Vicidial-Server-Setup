@@ -143,6 +143,7 @@ stage_finish "${STAGE_NAME}"
 
 
 
+
 ######
 # Run :    mysql -u cron -p asterisk -e "SELECT allowed_sip_stacks FROM system_settings;"
 # result : SIP_and_PJSIP
@@ -151,3 +152,7 @@ stage_finish "${STAGE_NAME}"
 #  ls -l /etc/asterisk/pjsip-vicidial.conf
 #  asterisk -rx "pjsip show endpoints"
 #
+
+
+#/usr/share/astguiclient/AST_conf_update.pl --debug
+# ==> output Writing pjsip-vicidial.conf
